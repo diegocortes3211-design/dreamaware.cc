@@ -1,0 +1,53 @@
+name: Xikizpedia (Build & Deploy)
+on:
+  push:
+    branches: [ "main", "feature/oidc-setup" ]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "memory/**"
+      - "scripts/build_links.py"
+      - ".github/workflows/xikizpedia-pages.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * *" # daily rebuild to pick up memory updates
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Install docs deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Generate link pages from memory
+        run: |
+          python scripts/build_links.py
+      - name: Build site
+        run: mkdocs build --strict
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    environment:
+      name: github-pages
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4

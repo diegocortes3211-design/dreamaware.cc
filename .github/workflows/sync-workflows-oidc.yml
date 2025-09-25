@@ -41,9 +41,9 @@ jobs:
         id: detect
         run: |
           if git diff --quiet -- .github/workflows; then
-            echo "nochanges=true"  >> "$GITHUB_OUTPUT"
+            echo "nochanges=true"  >> $GITHUB_OUTPUT
           else
-            echo "nochanges=false" >> "$GITHUB_OUTPUT"
+            echo "nochanges=false" >> $GITHUB_OUTPUT
             echo "::warning file=CHANGELOG::Workflow templates updated"
           fi
 

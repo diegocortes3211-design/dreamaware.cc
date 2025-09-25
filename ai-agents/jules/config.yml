@@ -1,0 +1,10 @@
+agent: jules
+inputs:
+  memory_files:
+    - memory/links.yml
+    - memory/terms.yml
+  wiki_root: docs/
+guardrails:
+  forbid_static_secrets: true
+  require_tests: true
+  require_refs_on_claims: true

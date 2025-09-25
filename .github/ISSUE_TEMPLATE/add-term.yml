@@ -1,0 +1,8 @@
+name: Add Memory Term
+description: Save a key term/phrase to memory/terms.yml
+labels: [term]
+body:
+  - type: input
+    id: term
+    attributes: { label: Term, placeholder: "e.g., Zero static secrets" }
+    validations: { required: true }
