@@ -72,6 +72,11 @@ export const Bye = z.object({
 export type Bye = z.infer<typeof Bye>;
 
 export const ServerMsg = z.discriminatedUnion("type", [
-  Welcome, Delta, Snapshot, PleaseAck, Ping, Bye
+  Welcome,
+  Delta,
+  Snapshot,
+  PleaseAck,
+  Ping,
+  Bye
 ]);
 export type ServerMsg = z.infer<typeof ServerMsg>;

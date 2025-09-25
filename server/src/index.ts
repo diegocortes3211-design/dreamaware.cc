@@ -9,10 +9,9 @@ import { RollingSnapshotCache } from "./snapshotCache.js";
 /** Config */
 const PORT = 8080;
 const STREAM_ID = "main_stream";
-
 // ... existing config from previous steps
-
-const stream = new Stream(STREAM_ID); // simulate 500 deltas/sec; adjust to taste
+const stream = new Stream(STREAM_ID);
+// simulate 500 deltas/sec; adjust to taste
 stream.startSynthetic(500);
 
 // ---- Rolling snapshot cache (Option A: 500ms)
@@ -46,14 +45,13 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocketServer({ server });
 
 type ConnState = {
-  id: string;
-  ws: WebSocket;
-  lastSeenMs: number;
-  credits: number;
-  sendQ: any[];
-  lastApplied: number;
+    id: string;
+    ws: WebSocket;
+    lastSeenMs: number;
+    credits: number;
+    sendQ: any[];
+    lastApplied: number;
 }
-
 const conns = new Map<string, ConnState>();
 
 wss.on("connection", (ws, req) => {
@@ -64,12 +62,8 @@ wss.on("connection", (ws, req) => {
 
 /** Build & enqueue snapshot for a connection */
 function enqueueSnapshot(conn: ConnState) {
-  const view = snapshotCache.view(); // cached, ≤500ms fresh
-  conn.sendQ.push({
-    type: "snapshot",
-    bytes: view.bytes.toString("utf8"),
-    weight: 1
-  });
+    const view = snapshotCache.view(); // cached, ≤500ms fresh
+    conn.sendQ.push({ type: "snapshot", bytes: view.bytes.toString("utf8"), weight: 1 });
 }
 
 /** Global scheduler: round-robin send respecting credits */

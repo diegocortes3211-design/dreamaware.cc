@@ -1,4 +1,4 @@
-import { ServerMsg, Snapshot, Delta } from "./types";
+import { ServerMsg, Snapshot, Delta } from "./types.ts";
 
 type State = {
   tickId: number;
@@ -109,7 +109,6 @@ export class StreamClient {
         this.msgQueue.shift();
       }
     }
-
     this.events.onState(this.state);
     this.events.onMetrics({ credits: this.credits, qLen: this.msgQueue.length });
 
