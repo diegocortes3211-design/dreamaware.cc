@@ -1,7 +1,1 @@
-export function clamp(n: number, lo: number, hi: number) {
-  return Math.max(lo, Math.min(hi, n));
-}
-
-export function nowMs() {
-  return Date.now();
-}
+export function clamp(n: number, lo: number, hi: number): number { return Math.max(lo, Math.min(hi, n)); } export function nowMs(): number { return Date.now(); }
