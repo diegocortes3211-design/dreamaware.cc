@@ -1,13 +1,297 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>dreamaware cc</title>
-    <meta name="theme-color" content="#0a0a0f" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>xikizpedia ~ prompt orb</title>
+<style>
+  :root{
+    color-scheme: dark;
+    --ink: #0b0c0f;
+    --glass: rgba(255,255,255,.08);
+    --glow: 0 0 24px rgba(120,180,255,.45), 0 0 64px rgba(160,80,255,.25);
+  }
+  html,body{height:100%;}
+  body{
+    margin:0; background:#000; overflow:hidden; font-family: ui-sans-serif,system-ui,Inter,Segoe UI,Roboto,Helvetica,Arial;
+    letter-spacing:.2px;
+  }
+  /* stack: background ← trails ← orb+glyphs ← ui */
+  canvas{position:fixed; inset:0; display:block;}
+  #bg{z-index:1; pointer-events:none;}
+  #fx{z-index:2; pointer-events:none;}
+  #ui{position:fixed; inset:0; z-index:3; display:grid; place-items:center; pointer-events:none;}
+  .hud{
+    position:fixed; left:12px; top:12px; z-index:4; color:#cbd5e1; font-size:12px; line-height:1.25; pointer-events:none;
+    text-shadow:0 0 10px rgba(0,0,0,.8);
+  }
+  .brand{
+    position:fixed; right:12px; bottom:10px; z-index:4; color:#8ea9ff; font-size:11px; opacity:.8; pointer-events:none;
+    text-shadow:0 0 10px rgba(0,0,0,.8);
+  }
+  .prompt-wrap{
+    pointer-events:auto;
+    width:min(800px,92vw);
+    padding:14px; border-radius:16px;
+    background: rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.14);
+    box-shadow: var(--glow);
+    backdrop-filter: blur(14px) saturate(120%);
+    transform: translateY(-12vh);
+  }
+  .prompt{
+    width:100%; font:600 18px/1.35 ui-sans-serif,Inter,system-ui;
+    background: transparent; color:#e5e7eb; border:0; outline:0;
+    caret-color:#a7f3d0;
+    text-align:center;
+  }
+  .prompt::placeholder{color:#9ca3af;}
+  /* hide system cursor on stage but allow in input */
+  body{cursor:none;}
+  .prompt, .prompt:focus{cursor:text;}
+  /* helper chips */
+  .chip{
+    position:fixed; left:50%; transform: translateX(-50%);
+    bottom:64px; z-index:4; color:#cbd5e1; font-size:12px; opacity:.85; pointer-events:none;
+    text-shadow:0 0 10px rgba(0,0,0,.9);
+  }
+  /* accessibility toggle hint */
+  .kbd{display:inline-block; padding:2px 6px; border-radius:6px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); font-size:11px;}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<canvas id="fx"></canvas>
+
+<div id="ui">
+  <div class="prompt-wrap">
+    <input id="prompt" class="prompt" autocomplete="off" spellcheck="false"
+      placeholder="type a vision and press Enter ~ your words will orbit the orb" />
+  </div>
+</div>
+
+<div class="hud" id="hud">void id: ——<br/>sha256: ——</div>
+<div class="brand">xikizpedia ~ education only · presentFIRST</div>
+<div class="chip"><span class="kbd">move</span> to guide · <span class="kbd">T</span> trails · <span class="kbd">C</span> cursor</div>
+
+<script>
+/* ========= basics ========= */
+const bg = document.getElementById('bg');
+const fx = document.getElementById('fx');
+const gbg = bg.getContext('2d', { alpha:false });
+const gfx = fx.getContext('2d');
+const HUD = document.getElementById('hud');
+const promptEl = document.getElementById('prompt');
+
+let W = innerWidth, H = innerHeight, DPR = Math.min(devicePixelRatio||1, 2);
+function fit(){
+  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio||1, 2);
+  [bg,fx].forEach(c=>{ c.width = W*DPR; c.height = H*DPR; c.style.width=W+'px'; c.style.height=H+'px'; });
+  gbg.setTransform(DPR,0,0,DPR,0,0);
+  gfgSet();
+}
+addEventListener('resize', fit); fit();
+
+/* ========= background flow (psychedelic) =========
+   lightweight: many lissajous orbits with additive blend */
+let tStart = performance.now();
+function flow(ts){
+  const t = (ts - tStart)/1000;
+  // fade for trails
+  gbg.globalCompositeOperation = 'source-over';
+  gbg.fillStyle = 'rgba(0,0,0,0.08)';
+  gbg.fillRect(0,0,W,H);
+
+  // additive blobs
+  gbg.globalCompositeOperation = 'lighter';
+  const N = 36;
+  for(let i=0;i<N;i++){
+    const a = i/N;
+    const x = (0.5 + 0.32*Math.sin(t*0.7 + a*6.0) + 0.14*Math.sin(t*1.7 + a*3.0))*W;
+    const y = (0.5 + 0.28*Math.sin(t*0.9 + a*4.0 + 1.7) + 0.12*Math.cos(t*1.3 + a*5.0))*H;
+    const r = 80 + 60*Math.sin(t*1.2 + i);
+    const hue = (360*(a) + t*30) % 360;
+    const grad = gbg.createRadialGradient(x,y,0, x,y,r);
+    grad.addColorStop(0, `hsla(${hue} 100% 60% / .18)`);
+    grad.addColorStop(1, `hsla(${(hue+120)%360} 100% 50% / 0)`);
+    gbg.fillStyle = grad;
+    gbg.beginPath(); gbg.arc(x,y,r,0,Math.PI*2); gbg.fill();
+  }
+  requestAnimationFrame(flow);
+}
+requestAnimationFrame(flow);
+
+/* ========= pointer orb + glyph orbits ========= */
+let showCursor = true;
+let showTrails = true;
+
+const pointer = { x: W/2, y: H*0.55, sx: W/2, sy: H*0.55 };
+addEventListener('mousemove', e => { pointer.x = e.clientX; pointer.y = e.clientY; });
+addEventListener('touchstart', e => { const p=e.touches[0]; pointer.x=p.clientX; pointer.y=p.clientY; }, {passive:true});
+addEventListener('touchmove',  e => { const p=e.touches[0]; pointer.x=p.clientX; pointer.y=p.clientY; }, {passive:true});
+
+/* seeded rng from sha */
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t^=t+Math.imul(t^t>>>7,61|t); return ((t^t>>>14)>>>0)/4294967296; }; }
+
+/* current system state from prompt */
+let GLYPHS = []; // {ch, angle, r, speed, tilt}
+let seedRand = mulberry32(0xBAD5EED);
+let shaHex = '—', voidId = '—';
+
+async function applyPrompt(text){
+  text = (text||'').trim();
+  if (!text) { GLYPHS.length = 0; shaHex='—'; voidId='—'; HUD.textContent=`void id: ${voidId}\nsha256: ${shaHex}`; return; }
+  const enc = new TextEncoder();
+  const hash = await crypto.subtle.digest('SHA-256', enc.encode(text));
+  const bytes = new Uint8Array(hash);
+  shaHex = [...bytes].map(b=>b.toString(16).padStart(2,'0')).join('');
+  voidId = shaHex.slice(0,8);
+  // seed rng from first 4 bytes
+  const seed = (bytes[0]<<24) | (bytes[1]<<16) | (bytes[2]<<8) | bytes[3];
+  seedRand = mulberry32(seed>>>0);
+
+  // build glyph orbits
+  GLYPHS = [];
+  const chars = [...text].filter(c=>c.trim().length>0).slice(0,64);
+  if (chars.length===0) chars.push('~');
+  const baseR = 64 + 80*seedRand();
+  chars.forEach((ch,i)=>{
+    const r = baseR + 12*i* (0.35+seedRand()*0.8);
+    const speed = (seedRand()*0.8 + 0.2) * (seedRand() < 0.5 ? -1 : 1);
+    const angle = seedRand()*Math.PI*2;
+    const tilt = (seedRand()-0.5)*0.9;
+    GLYPHS.push({ ch, r, speed, angle, tilt });
+  });
+
+  HUD.textContent = `void id: ${voidId}\nsha256: ${shaHex}`;
+
+  // store receipt
+  const receipt = {
+    text,
+    voidId,
+    shaHex,
+    ts: new Date().toISOString()
+  };
+  try {
+    const receipts = JSON.parse(localStorage.getItem('xikizpedia-receipts') || '[]');
+    receipts.push(receipt);
+    localStorage.setItem('xikizpedia-receipts', JSON.stringify(receipts));
+  } catch (e) {
+    console.error("failed to save receipt", e);
+  }
+}
+promptEl.addEventListener('keydown', e=>{
+  if(e.key==='Enter'){ e.preventDefault(); applyPrompt(promptEl.value); promptEl.blur(); }
+});
+
+addEventListener('keydown', e=>{
+  if (e.key==='t' || e.key==='T') showTrails = !showTrails;
+  if (e.key==='c' || e.key==='C') {
+    showCursor = !showCursor;
+    document.body.style.cursor = showCursor ? 'none' : 'auto';
+  }
+  if (e.key==='r' || e.key==='R'){
+    try {
+      const receipts = JSON.parse(localStorage.getItem('xikizpedia-receipts') || '[]');
+      console.log('receipts:', receipts);
+    } catch (e) {
+      console.error('could not get receipts', e);
+    }
+  }
+});
+
+/* draw loop for orb and glyphs */
+function gfgSet(){ gfx.setTransform(DPR,0,0,DPR,0,0); }
+gfgSet();
+
+let last = performance.now();
+function draw(ts){
+  const dt = Math.min(0.032, (ts-last)/1000); last = ts;
+
+  // pointer smoothing
+  pointer.sx += (pointer.x - pointer.sx) * (1 - Math.pow(0.0001, dt));
+  pointer.sy += (pointer.y - pointer.sy) * (1 - Math.pow(0.0001, dt));
+
+  // trails fade
+  if (showTrails){
+    gfx.globalCompositeOperation = 'source-over';
+    gfx.fillStyle = 'rgba(0,0,0,0.16)';
+    gfx.fillRect(0,0,W,H);
+  } else {
+    gfx.clearRect(0,0,W,H);
+  }
+
+  // orb body (glistening black pearl)
+  if (showCursor){
+    const x = pointer.sx, y = pointer.sy;
+    const R = 26;
+    // base sphere
+    const rad = gfx.createRadialGradient(x-R*0.4, y-R*0.4, 2, x, y, R*1.4);
+    rad.addColorStop(0, 'rgba(255,255,255,0.04)');
+    rad.addColorStop(0.5, 'rgba(10,12,16,0.9)');
+    rad.addColorStop(1, 'rgba(0,0,0,1)');
+    gfx.fillStyle = rad;
+    gfx.beginPath(); gfx.arc(x,y,R,0,Math.PI*2); gfx.fill();
+
+    // rim glow
+    const rim = gfx.createRadialGradient(x,y,R*0.8, x,y,R*1.8);
+    rim.addColorStop(0, 'rgba(120,180,255,0.10)');
+    rim.addColorStop(1, 'rgba(120,180,255,0.0)');
+    gfx.fillStyle = rim;
+    gfx.beginPath(); gfx.arc(x,y,R*1.6,0,Math.PI*2); gfx.fill();
+
+    // specular glint
+    gfx.globalCompositeOperation = 'lighter';
+    gfx.fillStyle = 'rgba(200,240,255,0.35)';
+    gfx.beginPath(); gfx.ellipse(x-R*0.25, y-R*0.35, R*0.5, R*0.22, -0.6, 0, Math.PI*2); gfx.fill();
+
+    // orbit path hint
+    gfx.globalCompositeOperation = 'source-over';
+    gfx.strokeStyle = 'rgba(140,160,255,0.16)';
+    gfx.lineWidth = 1.2;
+    gfx.beginPath(); gfx.arc(x,y,GLYPHS.length?GLYPHS[0].r:80,0,Math.PI*2); gfx.stroke();
+  }
+
+  // glyphs
+  if (GLYPHS.length){
+    const x = pointer.sx, y = pointer.sy;
+    gfx.save();
+    gfx.translate(x,y);
+    gfx.textAlign = 'center';
+    gfx.textBaseline = 'middle';
+    gfx.font = '600 16px ui-sans-serif,Inter,system-ui';
+    for (const g of GLYPHS){
+      g.angle += g.speed * dt * 0.9;
+      const rx = g.r;
+      const ry = g.r * (0.66 + 0.22*Math.sin(g.tilt));
+      const gx = Math.cos(g.angle)*rx;
+      const gy = Math.sin(g.angle)*ry;
+      const hue = ((g.r*0.9 + ts/40) % 360);
+      gfx.fillStyle = `hsla(${hue} 90% 65% / .95)`;
+      gfx.shadowColor = `hsla(${(hue+60)%360} 100% 60% / .65)`;
+      gfx.shadowBlur = 14;
+      gfx.fillText(g.ch, gx, gy);
+    }
+    gfx.restore();
+  }
+
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+
+/* seed a default vibe */
+applyPrompt('present ~ orbit ~ build ~ learn');
+
+/* accessibility: allow showing system cursor if no pointer movement in 4s */
+let movedAt = Date.now();
+addEventListener('mousemove', ()=> movedAt=Date.now());
+setInterval(()=>{
+  if (Date.now()-movedAt > 4000 && showCursor){
+    document.body.style.cursor='auto';
+  } else {
+    if (showCursor) document.body.style.cursor='none';
+  }
+}, 500);
+</script>
+</body>
 </html>

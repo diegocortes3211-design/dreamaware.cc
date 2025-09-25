@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WS Backpressure Demo</title>
+    <link rel="stylesheet" href="./src/style.css">
+  </head>
+  <body>
+    <div id="app">
+      <h1>WS Backpressure Demo</h1>
+      <div class="card">
+        <div id="status">Connecting...</div>
+        <div id="tick">Tick: 0</div>
+        <div id="state">State: 0</div>
+        <div id="q_len">Client Q: 0</div>
+        <div id="credits">Credits: 0</div>
+      </div>
+      <div class="card">
+        <button id="pauseBtn" type="button">Pause</button>
+      </div>
+      <div class="card logs">
+        <h2>Logs</h2>
+        <pre id="logs"></pre>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
