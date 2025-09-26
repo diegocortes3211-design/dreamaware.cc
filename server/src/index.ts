@@ -4,7 +4,7 @@ import { z } from "zod";
 import { clamp, nowMs } from "./util.js";
 import { ClientMsg, Hello, Credit, Pong, Welcome, Delta, Snapshot, Ping, Bye } from "./types.js";
 import { Stream } from "./stream.js";
-import { RollingSnapshotCache } from "./snapshotCache.js";
+import { SnapshotCache } from "./snapshotCache.js";
 
 /** Config */
 const PORT = 8080;
@@ -15,21 +15,21 @@ const STREAM_ID = "main_stream";
 const stream = new Stream(STREAM_ID); // simulate 500 deltas/sec; adjust to taste
 stream.startSynthetic(500);
 
+// Create a simple state wrapper for the stream data
+const graphState = {
+  head: 0,
+  nodes: new Map(),
+  edges: new Map()
+};
+
+// Update graph state when stream changes
+stream.subscribe((tickId, delta) => {
+  graphState.head = tickId;
+  graphState.nodes.set('count', { id: 'count', value: delta.count });
+});
+
 // ---- Rolling snapshot cache (Option A: 500ms)
-const snapshotCache = new RollingSnapshotCache(
-  () => {
-    // Build the snapshot JSON OFF the hot path, every 500ms.
-    const snap = stream.snapshot(); // { tickId, state: { count } } in starter
-    // Validate shape with your Zod schema (keeps payload honest).
-    const payload = Snapshot.parse({
-      type: "snapshot",
-      tickId: snap.tickId,
-      state: { count: snap.state.count },
-    });
-    return { tickId: snap.tickId, json: JSON.stringify(payload) };
-  },
-  500
-);
+const snapshotCache = new SnapshotCache(graphState, 500);
 snapshotCache.start();
 
 const server = http.createServer((req, res) => {
@@ -49,7 +49,7 @@ const server = http.createServer((req, res) => {
     res.writeHead(200).end("ws-backpressure-server\n");
   } else if (req.url === "/healthz") {
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify(snapshotCache.stats()));
+    res.end(JSON.stringify(snapshotCache.getStats()));
   } else if (req.url === "/api/_csp-report" && req.method === "POST") {
     // CSP violation reporting endpoint
     let body = '';
@@ -104,12 +104,20 @@ wss.on("connection", (ws, req) => {
 
 /** Build & enqueue snapshot for a connection */
 function enqueueSnapshot(conn: ConnState) {
-  const view = snapshotCache.view(); // cached, ≤500ms fresh
-  conn.sendQ.push({
-    type: "snapshot",
-    bytes: view.bytes.toString("utf8"),
-    weight: 1
-  });
+  const { snapshot } = snapshotCache.getSnapshot();
+  if (snapshot) {
+    conn.sendQ.push({
+      type: "snapshot",
+      bytes: snapshot.data.toString("utf8"),
+      weight: 1
+    });
+  } else {
+    // No snapshot available yet, send error or wait
+    conn.sendQ.push({
+      type: "snapshot_pending",
+      weight: 1
+    });
+  }
 }
 
 /** Global scheduler: round-robin send respecting credits */

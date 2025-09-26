@@ -19,5 +19,10 @@
     "@types/node": "^20.12.7",
     "tsc-watch": "^6.2.0",
     "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@types/ws": "^8.18.1",
+    "ws": "^8.18.3",
+    "zod": "^4.1.11"
   }
 }
