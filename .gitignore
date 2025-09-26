@@ -1,3 +1,12 @@
 node_modules
 dist
+
+# Temporary files and artifacts (generated during workflow runs)
+*.proc
+hashes*.txt
+attempted.txt
+anchored.txt
+skipped.txt
+failed.txt
+image-digest.txt
 .env
