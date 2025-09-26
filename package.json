@@ -1,20 +1,39 @@
 {
-  "name": "ws-backpressure-starter",
+  "name": "dreamaware-xikizpedia",
   "version": "1.0.0",
-  "description": "",
-  "main": "dist/index.js",
+  "description": "Enterprise-ready Xikizpedia integration with WebSocket server",
+  "main": "dist/server/index.js",
   "type": "module",
   "scripts": {
-    "start": "node dist/index.js",
-    "dev": "tsc-watch --onSuccess \"node dist/index.js\"",
-    "build": "tsc"
+    "start": "node dist/server/index.js",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "build": "npm run build:server && npm run build:client",
+    "build:server": "cd server && npm run build",
+    "build:client": "cd client && npm run build",
+    "db:migrate": "node scripts/migrate.js",
+    "db:seed": "node scripts/seed.js",
+    "db:setup": "npm run db:migrate && npm run db:seed",
+    "test": "echo \"Tests will be implemented\" && exit 0"
   },
-  "keywords": [],
+  "keywords": ["xikizpedia", "websocket", "postgres", "typescript"],
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "@types/node": "^20.12.7",
-    "tsc-watch": "^6.2.0",
+    "@types/pg": "^8.10.9",
+    "concurrently": "^8.2.2",
     "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "pg": "^8.11.3",
+    "zod": "^3.23.8",
+    "ws": "^8.16.0",
+    "express": "^4.18.2",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5",
+    "express-validator": "^7.0.1",
+    "dotenv": "^16.3.1"
   }
 }
