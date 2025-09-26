@@ -17,8 +17,8 @@ allow {
 
 # Check if target matches any approved pattern
 target_approved(target) {
-    some approved_target
-    approved_target := allowlist.approved_targets[_]
+    some i
+    approved_target := allowlist.approved_targets[i]
     regex.match(approved_target.pattern, target)
 }
 
