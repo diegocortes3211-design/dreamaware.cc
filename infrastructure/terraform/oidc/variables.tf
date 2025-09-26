@@ -5,5 +5,5 @@ variable "branch"         { type = string  default = "main" }
 variable "environment"    { type = string  default = "prod" }
 
 # Optional deploy targets (narrow privileges!)
-variable "artifact_bucket_arn" { type = string default = "" } # arn:aws:s3:::your-bucket
-variable "cf_distribution_id"  { type = string default = "" } # E123ABC456
+variable "artifact_bucket_arn" { type = string; default = "" } # arn:aws:s3:::your-bucket
+variable "cf_distribution_id"  { type = string; default = "" } # E123ABC456

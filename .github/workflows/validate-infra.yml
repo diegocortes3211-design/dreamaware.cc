@@ -1,0 +1,54 @@
+name: Validate Infrastructure
+
+on:
+  pull_request:
+    paths:
+      - 'infrastructure/terraform/oidc/**'
+      - '.github/workflows/validate-infra.yml'
+
+permissions:
+  contents: read
+  id-token: write # Required for OIDC
+
+jobs:
+  validate:
+    name: Validate Terraform
+    runs-on: ubuntu-latest
+    env:
+      # These secrets must be configured in the GitHub repository settings.
+      # The README in the oidc directory provides instructions for this.
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      TF_WORKING_DIR: infrastructure/terraform/oidc
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials (OIDC)
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: tf-validate-${{ github.run_id }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      - name: Terraform Init
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        id: init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init
+
+      - name: Terraform Plan
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        id: plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+          terraform plan -input=false -no-color \
+            -var="org=${{ github.repository_owner }}" \
+            -var="repo=$REPO_NAME"

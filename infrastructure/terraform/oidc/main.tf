@@ -1,12 +1,21 @@
 terraform {
   required_version = ">= 1.5.0"
-  required_providers { aws = { source = "hashicorp/aws", version = ">= 5.0" } }
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 5.0"
+    }
+  }
 }
 
-provider "aws" { region = var.aws_region }
+provider "aws" {
+  region = var.aws_region
+}
 
 # GitHub OIDC provider
-data "tls_certificate" "github" { url = "https://token.actions.githubusercontent.com" }
+data "tls_certificate" "github" {
+  url = "https://token.actions.githubusercontent.com"
+}
 
 resource "aws_iam_openid_connect_provider" "github" {
   url             = "https://token.actions.githubusercontent.com"
@@ -18,7 +27,10 @@ resource "aws_iam_openid_connect_provider" "github" {
 data "aws_iam_policy_document" "trust" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
-    principals { type = "Federated" identifiers = [aws_iam_openid_connect_provider.github.arn] }
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.github.arn]
+    }
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:aud"
@@ -42,16 +54,20 @@ resource "aws_iam_role" "dreamaware_ci" {
 # Minimal deploy permissions (optional S3 + CloudFront)
 data "aws_iam_policy_document" "deploy" {
   statement {
-    sid     = "S3Artifacts"
-    actions = ["s3:PutObject","s3:PutObjectAcl","s3:DeleteObject","s3:ListBucket"]
+    sid       = "S3Artifacts"
+    actions   = ["s3:PutObject", "s3:PutObjectAcl", "s3:DeleteObject", "s3:ListBucket"]
     resources = var.artifact_bucket_arn != "" ? [
       var.artifact_bucket_arn, "${var.artifact_bucket_arn}/*"
     ] : []
-    condition { test="Bool" variable="aws:SecureTransport" values=["true"] }
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["true"]
+    }
   }
   statement {
-    sid      = "CloudFrontInvalidate"
-    actions  = ["cloudfront:CreateInvalidation"]
+    sid       = "CloudFrontInvalidate"
+    actions   = ["cloudfront:CreateInvalidation"]
     resources = var.cf_distribution_id != "" ? [
       "arn:aws:cloudfront::*:distribution/${var.cf_distribution_id}"
     ] : []

@@ -1,7 +1,0 @@
-reminders:
-  - title: Review security alerts
-    schedule: daily
-    notes: "Triage Code Scanning alerts + SARIF bundle"
-  - title: Xikizpedia content pass
-    schedule: weekly
-    notes: "Add new links, tighten claims → sources"
