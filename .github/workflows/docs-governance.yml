@@ -1,0 +1,291 @@
+name: 'Documentation Governance'
+
+on:
+  push:
+    branches: [ main ]
+    paths: 
+      - 'docs/**/*.md'
+      - '*.md'
+      - '.github/workflows/docs-governance.yml'
+      - '.markdownlint.json'
+      - 'lychee.toml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'docs/**/*.md' 
+      - '*.md'
+      - '.github/workflows/docs-governance.yml'
+      - '.markdownlint.json'
+      - 'lychee.toml'
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  markdown-lint:
+    name: 'Markdown Linting'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Checkout code'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 'Setup Node.js'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 'Install dependencies'
+        run: npm ci
+
+      - name: 'Run markdownlint'
+        run: npx markdownlint-cli2 "**/*.md" "#node_modules" "#dist"
+        
+      - name: 'Upload linting results'
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: markdown-lint-results
+          path: |
+            markdownlint-results.json
+          retention-days: 30
+
+  link-check:
+    name: 'Link Validation'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Checkout code'
+        uses: actions/checkout@v4
+
+      - name: 'Install lychee'
+        uses: lycheeverse/lychee-action@v2.2.0
+        with:
+          args: |
+            --verbose 
+            --no-progress 
+            --config lychee.toml
+            --output lychee-results.md
+            "**/*.md"
+          fail: false
+
+      - name: 'Upload link check results'
+        uses: actions/upload-artifact@v4
+        with:
+          name: link-check-results
+          path: |
+            lychee-results.md
+          retention-days: 30
+
+      - name: 'Comment PR with link check results'
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (fs.existsSync('lychee-results.md')) {
+              const results = fs.readFileSync('lychee-results.md', 'utf8');
+              const body = `## 🔗 Link Check Results\n\n${results}`;
+              
+              // Find existing comment
+              const comments = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number
+              });
+              
+              const existingComment = comments.data.find(
+                comment => comment.user.login === 'github-actions[bot]' && 
+                comment.body.includes('🔗 Link Check Results')
+              );
+              
+              if (existingComment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existingComment.id,
+                  body: body
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: body
+                });
+              }
+            }
+
+  policy-validation:
+    name: 'Policy Compliance Check'
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: 'Checkout code'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 'Get changed files'
+        id: changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: |
+            **/*.md
+            **/*.json
+            **/*.yml
+            **/*.yaml
+            **/*.toml
+            **/*.txt
+
+      - name: 'Validate against policy allowlist'
+        run: |
+          echo "Changed files:"
+          echo "${{ steps.changed-files.outputs.all_changed_files }}"
+          
+          # Check if this is a documentation-only PR
+          DOC_ONLY=true
+          FORBIDDEN_FOUND=false
+          
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "Checking file: $file"
+            
+            # Check against forbidden patterns
+            case "$file" in
+              *.key|*.pem|*.p12|*.pfx|*.jks|*.keystore)
+                echo "❌ Forbidden file type: $file"
+                FORBIDDEN_FOUND=true
+                ;;
+              **/secrets/*|**/certs/*|**/keys/*)
+                echo "❌ Forbidden path: $file" 
+                FORBIDDEN_FOUND=true
+                ;;
+              *.env|*.secret|*.credential|*.token)
+                echo "❌ Forbidden secret file: $file"
+                FORBIDDEN_FOUND=true
+                ;;
+              **/id_rsa*|**/id_ed25519*|**/id_ecdsa*)
+                echo "❌ Forbidden SSH key: $file"
+                FORBIDDEN_FOUND=true
+                ;;
+              *.exe|*.dll|*.so|*.dylib|*.bin)
+                echo "❌ Forbidden binary file: $file"
+                FORBIDDEN_FOUND=true
+                ;;
+              *.md|*.txt|*.rst|*.json)
+                echo "✅ Allowed documentation file: $file"
+                ;;
+              *)
+                echo "ℹ️  Non-documentation file: $file"
+                DOC_ONLY=false
+                ;;
+            esac
+          done
+          
+          if [ "$FORBIDDEN_FOUND" = true ]; then
+            echo "❌ Policy violation: Forbidden files detected"
+            exit 1
+          fi
+          
+          if [ "$DOC_ONLY" = true ]; then
+            echo "✅ Documentation-only PR detected"
+            echo "doc_only=true" >> $GITHUB_OUTPUT
+          else
+            echo "ℹ️  Mixed content PR"
+            echo "doc_only=false" >> $GITHUB_OUTPUT
+          fi
+        id: policy-check
+
+      - name: 'Add policy compliance label'
+        if: steps.policy-check.outputs.doc_only == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['documentation-only', 'governance-compliant']
+            });
+
+  security-scan:
+    name: 'Security Scanning'
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: 'Checkout code'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 'Run secret scanning'
+        uses: trufflesecurity/trufflehog@main
+        with:
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          path: ./
+          extra_args: --only-verified
+
+      - name: 'Upload security scan results'
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-results
+          path: |
+            trufflehog-results.json
+          retention-days: 30
+
+  generate-report:
+    name: 'Generate Governance Report'
+    runs-on: ubuntu-latest
+    needs: [markdown-lint, link-check, policy-validation, security-scan]
+    if: always()
+    steps:
+      - name: 'Download artifacts'
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: 'Generate governance report'
+        run: |
+          cat << 'EOF' > governance-report.md
+          # 📋 Documentation Governance Report
+          
+          **Generated**: $(date -u)
+          **Event**: ${{ github.event_name }}
+          **Ref**: ${{ github.ref }}
+          **SHA**: ${{ github.sha }}
+          
+          ## Summary
+          
+          | Check | Status | Details |
+          |-------|--------|---------|
+          | Markdown Linting | ${{ needs.markdown-lint.result == 'success' && '✅ Pass' || '❌ Fail' }} | Ensures consistent documentation style |
+          | Link Validation | ${{ needs.link-check.result == 'success' && '✅ Pass' || '❌ Fail' }} | Validates all links are accessible |
+          | Policy Compliance | ${{ needs.policy-validation.result == 'success' && '✅ Pass' || '❌ Fail' }} | Enforces governance constraints |
+          | Security Scanning | ${{ needs.security-scan.result == 'success' && '✅ Pass' || '❌ Fail' }} | Detects secrets and vulnerabilities |
+          
+          ## Detailed Results
+          
+          Results and logs are available in the workflow artifacts for detailed investigation.
+          
+          ## Next Steps
+          
+          - Review any failed checks and address issues
+          - Ensure all documentation follows Fortress v4 standards
+          - Verify compliance with governance policies
+          
+          ---
+          *This report was generated automatically by the Documentation Governance workflow.*
+          EOF
+
+      - name: 'Upload governance report'
+        uses: actions/upload-artifact@v4
+        with:
+          name: governance-report
+          path: |
+            governance-report.md
+          retention-days: 90

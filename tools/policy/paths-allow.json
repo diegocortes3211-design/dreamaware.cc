@@ -1,0 +1,293 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "title": "Fortress v4 Path Allowlist",
+  "description": "Defines allowed paths for different types of changes to enforce governance and security constraints",
+  "type": "object",
+  "properties": {
+    "documentation_only": {
+      "description": "Paths allowed for documentation-only PRs",
+      "type": "object",
+      "properties": {
+        "allowed_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            "docs/**/*.md",
+            "README.md",
+            "*.md",
+            ".github/pull_request_template.md"
+          ]
+        },
+        "allowed_extensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "examples": [".md", ".txt", ".rst"]
+        },
+        "forbidden_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            "secrets/**",
+            "*.key",
+            "*.pem",
+            "*.p12"
+          ]
+        }
+      }
+    },
+    "configuration_only": {
+      "description": "Paths allowed for configuration-only PRs",
+      "type": "object",
+      "properties": {
+        "allowed_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbidden_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "data": {
+    "documentation_only": {
+      "allowed_paths": [
+        "docs/**/*.md",
+        "docs/**/*.rst",
+        "docs/**/*.txt",
+        "README.md",
+        "CONTRIBUTING.md",
+        "CHANGELOG.md",
+        "LICENSE",
+        "*.md",
+        ".github/pull_request_template.md",
+        ".github/ISSUE_TEMPLATE/*.md",
+        "tools/policy/paths-allow.json"
+      ],
+      "allowed_extensions": [
+        ".md",
+        ".rst",
+        ".txt",
+        ".json"
+      ],
+      "forbidden_paths": [
+        "**/*.key",
+        "**/*.pem",
+        "**/*.p12",
+        "**/*.pfx",
+        "**/*.jks",
+        "**/*.keystore",
+        "secrets/**",
+        "certs/**",
+        "keys/**",
+        "**/*.env",
+        "**/*.secret",
+        "**/*.credential",
+        "**/*.token",
+        "**/id_rsa*",
+        "**/id_ed25519*",
+        "**/id_ecdsa*",
+        "**/*.exe",
+        "**/*.dll",
+        "**/*.so",
+        "**/*.dylib",
+        "**/*.bin",
+        "**/*.dat",
+        "**/*.db",
+        "**/*.sqlite*",
+        "node_modules/**",
+        "vendor/**",
+        "target/**",
+        "build/**",
+        "dist/**",
+        ".git/**"
+      ]
+    },
+    "configuration_only": {
+      "allowed_paths": [
+        "**/*.yaml",
+        "**/*.yml",
+        "**/*.json",
+        "**/*.toml",
+        "**/*.conf",
+        "**/*.config",
+        "**/*.ini",
+        ".gitignore",
+        ".dockerignore",
+        "Dockerfile*",
+        "docker-compose*.yml",
+        "package.json",
+        "package-lock.json",
+        "requirements.txt",
+        "Pipfile*",
+        "go.mod",
+        "go.sum",
+        "Cargo.toml",
+        "Cargo.lock",
+        "pyproject.toml",
+        "setup.py",
+        "setup.cfg",
+        "tox.ini",
+        "makefile",
+        "Makefile",
+        "Taskfile.yml",
+        ".github/workflows/*.yml",
+        ".github/workflows/*.yaml",
+        "tools/policy/**/*.json",
+        "tools/scripts/**/*.sh",
+        "tools/scripts/**/*.py"
+      ],
+      "forbidden_paths": [
+        "**/*.key",
+        "**/*.pem",
+        "**/*.p12",
+        "**/*.pfx",
+        "**/*.jks",
+        "**/*.keystore",
+        "secrets/**",
+        "certs/**",
+        "keys/**",
+        "**/*.env",
+        "**/*.secret",
+        "**/*.credential",
+        "**/*.token",
+        "**/id_rsa*",
+        "**/id_ed25519*",
+        "**/id_ecdsa*",
+        "**/*.exe",
+        "**/*.dll",
+        "**/*.so",
+        "**/*.dylib",
+        "**/*.bin",
+        "**/*.dat",
+        "**/*.db",
+        "**/*.sqlite*"
+      ]
+    },
+    "code_changes": {
+      "description": "Standard code changes require full review",
+      "allowed_paths": [
+        "**/*.go",
+        "**/*.py",
+        "**/*.js",
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.jsx",
+        "**/*.java",
+        "**/*.kt",
+        "**/*.scala",
+        "**/*.rs",
+        "**/*.c",
+        "**/*.cpp",
+        "**/*.h",
+        "**/*.hpp",
+        "**/*.cs",
+        "**/*.rb",
+        "**/*.php",
+        "**/*.swift",
+        "**/*.dart",
+        "**/*.r",
+        "**/*.m",
+        "**/*.mm",
+        "src/**",
+        "lib/**",
+        "cmd/**",
+        "internal/**",
+        "pkg/**",
+        "services/**"
+      ],
+      "forbidden_paths": [
+        "**/*.key",
+        "**/*.pem",
+        "**/*.p12",
+        "**/*.pfx",
+        "**/*.jks",
+        "**/*.keystore",
+        "secrets/**",
+        "certs/**",
+        "keys/**",
+        "**/*.env",
+        "**/*.secret",
+        "**/*.credential",
+        "**/*.token",
+        "**/id_rsa*",
+        "**/id_ed25519*",
+        "**/id_ecdsa*"
+      ]
+    },
+    "infrastructure_changes": {
+      "description": "Infrastructure changes require security review",
+      "allowed_paths": [
+        "infrastructure/**",
+        "terraform/**",
+        "ansible/**",
+        "helm/**",
+        "k8s/**",
+        "kubernetes/**",
+        "deploy/**",
+        "deployments/**",
+        "manifests/**",
+        "charts/**"
+      ],
+      "forbidden_paths": [
+        "**/*.key",
+        "**/*.pem",
+        "**/*.p12",
+        "**/*.pfx",
+        "**/*.jks",
+        "**/*.keystore",
+        "secrets/**",
+        "certs/**",
+        "keys/**",
+        "**/*.env",
+        "**/*.secret",
+        "**/*.credential",
+        "**/*.token"
+      ]
+    },
+    "global_restrictions": {
+      "description": "Files that should never be modified in any PR",
+      "forbidden_paths": [
+        ".github/agents/**",
+        "**/.ssh/**",
+        "**/.gnupg/**",
+        "**/private_key*",
+        "**/secret_key*",
+        "**/*.pkey",
+        "**/*.private",
+        "**/shadow",
+        "**/passwd",
+        "**/sudoers*"
+      ]
+    }
+  },
+  "validation_rules": {
+    "file_size_limits": {
+      "documentation": "10MB",
+      "configuration": "1MB",
+      "binary_forbidden": true
+    },
+    "naming_conventions": {
+      "no_spaces_in_paths": true,
+      "lowercase_preferred": true,
+      "no_special_chars": true
+    },
+    "security_requirements": {
+      "no_hardcoded_secrets": true,
+      "no_binary_files": true,
+      "signed_commits_required": false,
+      "branch_protection_required": true
+    }
+  }
+}
