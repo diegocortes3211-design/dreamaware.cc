@@ -1,0 +1,36 @@
+name: Chaos Report — Cockroach Quorum
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "7 * * * *"
+jobs:
+  chaos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start stack
+        run: docker compose up -d --build && sleep 8
+      - name: Write under failure
+        run: |
+          set -e
+          for i in $(seq 1 100); do
+            PAY=$(printf '{"i":%d}' "$i")
+            curl -sS -XPOST localhost:8088/append \
+              -d "{\"subject\":\"chaos\",\"payload\":\"$(echo -n $PAY | base64)\"}" \
+              -H 'Content-Type: application/json' >/dev/null
+            if [ "$i" = "50" ]; then
+              docker stop $(docker ps --format '{{.Names}}' | grep crdb2)
+            fi
+          done
+      - name: Count rows
+        run: |
+          COUNT=$(docker exec $(docker ps --format '{{.Names}}' | grep crdb1) \
+            /cockroach/cockroach sql --insecure -d ledger -e "SELECT count(*) FROM ledger.entries WHERE subject='chaos';" \
+            | tail -n1 | tr -d '[:space:]')
+          echo "Rows=$COUNT"
+          mkdir -p docs/proofs
+          printf "# Chaos Report\n\nRows written: %s / expected: 100\nFault injected: crdb2 stop @ ~50.\n" "$COUNT" > docs/proofs/CHAOS_REPORT.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chaos-report
+          path: docs/proofs/CHAOS_REPORT.md

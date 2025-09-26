@@ -1,0 +1,83 @@
+version: "3.9"
+services:
+  crdb1:
+    image: cockroachdb/cockroach:v23.2.6
+    command: start --insecure --listen-addr=crdb1 --http-addr=crdb1:8080 --join=crdb1,crdb2,crdb3
+    hostname: crdb1
+    ports: ["26257:26257", "8081:8080"]
+    volumes: ["crdb1:/cockroach/cockroach-data"]
+    networks: [fortress]
+  crdb2:
+    image: cockroachdb/cockroach:v23.2.6
+    command: start --insecure --listen-addr=crdb2 --http-addr=crdb2:8080 --join=crdb1,crdb2,crdb3
+    hostname: crdb2
+    volumes: ["crdb2:/cockroach/cockroach-data"]
+    networks: [fortress]
+  crdb3:
+    image: cockroachdb/cockroach:v23.2.6
+    command: start --insecure --listen-addr=crdb3 --http-addr=crdb3:8080 --join=crdb1,crdb2,crdb3
+    hostname: crdb3
+    volumes: ["crdb3:/cockroach/cockroach-data"]
+    networks: [fortress]
+  crdb-init:
+    image: cockroachdb/cockroach:v23.2.6
+    depends_on: [crdb1, crdb2, crdb3]
+    entrypoint: ["/bin/bash","-lc"]
+    command: >
+      "cockroach sql --insecure --host=crdb1:26257 -e '
+      CREATE DATABASE IF NOT EXISTS ledger;
+      CREATE TABLE IF NOT EXISTS ledger.entries (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          ts TIMESTAMPTZ NOT NULL DEFAULT now(),
+          subject STRING NOT NULL,
+          payload BYTES NOT NULL,
+          sig BYTES NOT NULL,
+          pubkey STRING NOT NULL,
+          meta JSONB NOT NULL DEFAULT ''{}''
+      );
+      '"
+    networks: [fortress]
+  vault:
+    image: hashicorp/vault:1.14
+    command: server -dev -dev-root-token-id=root -dev-listen-address=0.0.0.0:8200
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: root
+      VAULT_ADDR: http://0.0.0.0:8200
+    ports: ["8200:8200"]
+    networks: [fortress]
+  vault-init:
+    image: hashicorp/vault:1.14
+    depends_on: [vault]
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: root
+    entrypoint: ["/bin/sh","-lc"]
+    command: >
+      "vault secrets enable transit || true;
+      vault write -f transit/keys/ledger-ed25519 type=ed25519 exportable=false allow_plaintext_backup=false;
+      vault write transit/keys/ledger-ed25519/config min_decryption_version=1 min_encryption_version=1 deletion_allowed=false;
+      echo 'ok'"
+    networks: [fortress]
+  ledger:
+    build:
+      context: .
+      dockerfile: services/ledger/Dockerfile
+    depends_on: [crdb1, crdb2, crdb3, crdb-init, vault, vault-init]
+    environment:
+      CRDB_DSN: postgresql://root@crdb1:26257/ledger?sslmode=disable
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: root
+      VAULT_TRANSIT_KEY: ledger-ed25519
+    ports: ["8088:8088"]
+    networks: [fortress]
+  verifier:
+    build:
+      context: .
+      dockerfile: tools/verifier/Dockerfile
+    networks: [fortress]
+networks:
+  fortress: {}
+volumes:
+  crdb1: {}
+  crdb2: {}
+  crdb3: {}

@@ -1,0 +1,13 @@
+{
+  "witness_keys": [
+    {
+      "id": "w1",
+      "pubkey": "BASE64_ED25519_PUBKEY1"
+    },
+    {
+      "id": "w2",
+      "pubkey": "BASE64_ED25519_PUBKEY2"
+    }
+  ],
+  "threshold": 2
+}

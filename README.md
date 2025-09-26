@@ -1,59 +1,31 @@
-# ws-backpressure-starter
+# Fortress v4 (Ledger + Proofs)
 
-This project demonstrates a credit-based WebSocket backpressure system with rolling cached snapshots. It provides a foundational real-time data stream architecture for high-performance applications.
+**What this is**: A reproducible, containerized evidence pack proving: quorum resilience (CockroachDB), key custody (Vault Transit, non-exportable), and public anchoring (Rekor + witness cosigns).
 
-## Project Structure
-
-- `server/`: Node.js and TypeScript WebSocket server
-  - Implements credit-based flow control.
-  - Utilizes a non-blocking rolling snapshot cache (500ms interval).
-  - Simulates a stream of deltas.
-- `client/`: Vite and TypeScript web client
-  - Connects to the WebSocket server.
-  - Implements client-side credit management and message draining.
-  - Provides a simple UI to visualize stream statistics and test backpressure (pause/resume).
-
-## Quickstart
-
-### 1. Clone the repository
-
+**Single command (local dev)**
 ```bash
-# This step is already done since you've created files locally and committed
-# git clone <YOUR_REPO_URL>
-# cd ws-backpressure-starter
+docker compose up -d --build
 ```
 
-### 2. Setup and Run the Server
-Navigate to the server directory, install dependencies, and start the server.
+### Smoke append
 ```bash
-cd server
-npm install
-npm run dev
+curl -XPOST localhost:8088/append -H 'content-type: application/json' \
+-d '{"subject":"smoke","payload":"aGVsbG8="}'
 ```
-
-The server will start on ws://localhost:8080/stream.
-### 3. Setup and Run the Client
-In a separate terminal, navigate to the client directory, install dependencies, and start the client.
-```bash
-cd ../client
-npm install
-npm run dev
-```
-
-Open the provided local URL in your browser (e.g., http://localhost:5173).
-### Verification
-In the client UI:
- * Observe the streaming tickId, queue length, credits, count, snapshots applied, and deltas applied KPIs.
- * Click Pause Drain to simulate a stalled client or a hidden browser tab.
-   * We should see the queue length grow as the server continues to send messages.
-   * The tickId will advance approximately every 500ms as the cached snapshot updates, demonstrating non-blocking snapshot delivery.
- * Click Resume Drain to observe the client rapidly catching up on the queued messages.
-### Next Steps
-This starter project provides a robust foundation. Future enhancements could include:
- * Integrating actual graph data (nodes and edges) into the stream and snapshot.
- * Developing the instanced renderer on the client-side using libraries like Pixi.js.
- * Implementing worker threads and manifest-based snapshots for very large states.
- * Adding comprehensive metrics and health endpoints.
-<!-- end list -->
 
 ---
+
+### Canonical artifacts = CI outputs
+- **Anchoring Proof** → GitHub Actions artifact `anchoring-proof`
+- **Chaos Report** → artifact `chaos-report`
+- **SnapSec Evidence** → artifact `snapsec-evidence`
+
+---
+
+### Ruthless verification (pulls CI artifacts)
+Requires: `curl`, `unzip`. Uses a containerized verifier if Docker is present.
+```bash
+GITHUB_TOKEN=ghp_... REPO=owner/repo ./scripts/verify.sh anchoring-proof
+```
+
+See `docs/PROOFS_INDEX.md` for binder links.

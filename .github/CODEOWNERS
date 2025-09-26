@@ -1,0 +1,3 @@
+# Human gate on agents
+/agents/prompts/** @dreamaware-core
+/agents/workflows/** @dreamaware-core
