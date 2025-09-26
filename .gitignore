@@ -1,3 +1,8 @@
 node_modules
 dist
 .env
+
+# Rekor anchoring workflow temporary files
+hashes/
+entries/
+test_hashes/

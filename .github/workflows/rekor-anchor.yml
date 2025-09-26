@@ -1,0 +1,229 @@
+name: Rekor Anchoring
+
+on:
+  workflow_dispatch:
+    inputs:
+      verify_image:
+        description: 'Enable cosign verification of the Rekor-CLI image'
+        required: false
+        default: 'false'
+        type: boolean
+      capture_proofs:
+        description: 'Store Rekor entry JSON for newly-anchored hashes'
+        required: false
+        default: 'false'
+        type: boolean
+      fail_on_failed:
+        description: 'Fail the workflow if any uploads fail (only in non-dry-run mode)'
+        required: false
+        default: 'false'
+        type: boolean
+      dry_run:
+        description: 'Run in dry-run mode (no actual anchoring)'
+        required: false
+        default: 'false'
+        type: boolean
+  schedule:
+    # Run daily at 02:00 UTC
+    - cron: '0 2 * * *'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  anchor-hashes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install cosign
+        if: ${{ inputs.verify_image == true }}
+        uses: sigstore/cosign-installer@v3
+
+      - name: Verify Rekor-CLI image provenance
+        if: ${{ inputs.verify_image == true }}
+        run: |
+          echo "Verifying Rekor-CLI image provenance..."
+          # Verify that the image was built by a GitHub Action from the sigstore organization
+          REKOR_IMAGE="gcr.io/projectsigstore/rekor-cli:latest"
+          echo "Verifying image: $REKOR_IMAGE"
+          
+          # Cosign verify with GitHub Actions identity from sigstore org
+          cosign verify \
+            --certificate-identity-regexp="^https://github.com/sigstore/.*" \
+            --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
+            $REKOR_IMAGE
+          
+          echo "✅ Rekor-CLI image provenance verified successfully"
+
+      - name: Setup Rekor CLI
+        run: |
+          # Download and setup rekor-cli
+          REKOR_VERSION="1.3.6"
+          curl -L "https://github.com/sigstore/rekor/releases/download/v${REKOR_VERSION}/rekor-cli-linux-amd64" \
+            -o /usr/local/bin/rekor-cli
+          chmod +x /usr/local/bin/rekor-cli
+          rekor-cli version
+
+      - name: Generate file hashes
+        id: hashes
+        run: |
+          echo "Generating hashes for repository files..."
+          
+          # Create hashes directory
+          mkdir -p hashes
+          
+          # Generate raw hash list
+          find . -type f -not -path './.git/*' -not -path './node_modules/*' \
+            -exec sha256sum {} \; > hashes/hashes_raw.txt
+          
+          # Create cleaned hash list (just the hashes)
+          cut -d' ' -f1 hashes/hashes_raw.txt > hashes/hashes.txt
+          
+          echo "Generated $(wc -l < hashes/hashes.txt) file hashes"
+          echo "hash_count=$(wc -l < hashes/hashes.txt)" >> $GITHUB_OUTPUT
+
+      - name: Create entries directory
+        if: ${{ inputs.capture_proofs == true }}
+        run: |
+          mkdir -p entries
+          echo "Created entries directory for inclusion proofs"
+
+      - name: Anchor hashes to Rekor
+        id: anchor
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          CAPTURE_PROOFS: ${{ inputs.capture_proofs }}
+        run: |
+          echo "Starting hash anchoring process..."
+          
+          success_count=0
+          failure_count=0
+          
+          # Read hashes and anchor each one
+          while IFS= read -r hash; do
+            if [[ -z "$hash" ]]; then
+              continue
+            fi
+            
+            echo "Processing hash: $hash"
+            
+            if [[ "$DRY_RUN" == "true" ]]; then
+              echo "  [DRY RUN] Would anchor hash: $hash"
+              success_count=$((success_count + 1))
+              continue
+            fi
+            
+            # Create temporary file with hash
+            echo -n "$hash" > /tmp/hash_file
+            
+            # Attempt to anchor to Rekor
+            if rekor_output=$(rekor-cli upload --artifact /tmp/hash_file --type hashedrekord 2>&1); then
+              echo "  ✅ Successfully anchored: $hash"
+              success_count=$((success_count + 1))
+              
+              # Capture inclusion proof if requested
+              if [[ "$CAPTURE_PROOFS" == "true" ]]; then
+                # Extract UUID from rekor output
+                uuid=$(echo "$rekor_output" | grep -oE 'Created entry at index [0-9]+, available at: https://rekor\.sigstore\.dev/api/v1/log/entries/[a-f0-9]+' | grep -oE '[a-f0-9]+$')
+                if [[ -n "$uuid" ]]; then
+                  echo "  📋 Capturing inclusion proof for UUID: $uuid"
+                  # Get the entry JSON
+                  if entry_json=$(rekor-cli get --uuid "$uuid" --format json 2>&1); then
+                    echo "$entry_json" > "entries/${uuid}.json"
+                    echo "  ✅ Inclusion proof saved: entries/${uuid}.json"
+                  else
+                    echo "  ⚠️  Failed to capture inclusion proof for UUID: $uuid"
+                  fi
+                fi
+              fi
+            else
+              echo "  ❌ Failed to anchor: $hash"
+              echo "  Error: $rekor_output"
+              failure_count=$((failure_count + 1))
+            fi
+            
+            # Small delay to avoid rate limiting
+            sleep 1
+          done < hashes/hashes.txt
+          
+          echo "Anchoring complete:"
+          echo "  ✅ Successful: $success_count"
+          echo "  ❌ Failed: $failure_count"
+          
+          # Output results
+          echo "success_count=$success_count" >> $GITHUB_OUTPUT
+          echo "failure_count=$failure_count" >> $GITHUB_OUTPUT
+          
+          # Create summary files
+          echo "$success_count" > hashes/success_count.txt
+          echo "$failure_count" > hashes/failure_count.txt
+
+      - name: Check for failures
+        if: ${{ inputs.fail_on_failed == true && inputs.dry_run != true }}
+        run: |
+          failure_count="${{ steps.anchor.outputs.failure_count }}"
+          if [[ "$failure_count" -gt 0 ]]; then
+            echo "❌ $failure_count hash(es) failed to anchor. Failing workflow as requested."
+            exit 1
+          else
+            echo "✅ All hashes anchored successfully"
+          fi
+
+      - name: Prepare artifacts
+        run: |
+          echo "Preparing artifacts for upload..."
+          
+          # Ensure all expected files exist
+          touch hashes/hashes_raw.txt hashes/hashes.txt hashes/success_count.txt hashes/failure_count.txt
+          
+          # If capture_proofs is enabled, include entries directory
+          if [[ "${{ inputs.capture_proofs }}" == "true" && -d "entries" ]]; then
+            echo "Including $(find entries -name '*.json' | wc -l) inclusion proof files"
+            ls -la entries/ || echo "No entries found"
+          fi
+          
+          # Create artifact summary
+          cat > artifact_summary.txt << EOF
+          Rekor Anchoring Summary
+          =======================
+          
+          Run Date: $(date -u)
+          Hash Count: ${{ steps.hashes.outputs.hash_count }}
+          Successful: ${{ steps.anchor.outputs.success_count }}
+          Failed: ${{ steps.anchor.outputs.failure_count }}
+          Dry Run: ${{ inputs.dry_run }}
+          Capture Proofs: ${{ inputs.capture_proofs }}
+          Verify Image: ${{ inputs.verify_image }}
+          Fail on Failed: ${{ inputs.fail_on_failed }}
+          EOF
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rekor-anchoring-results-${{ github.run_number }}
+          path: |
+            hashes/
+            entries/
+            artifact_summary.txt
+          retention-days: 90
+
+      - name: Summary
+        run: |
+          echo "## Rekor Anchoring Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Hash Count:** ${{ steps.hashes.outputs.hash_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Successful:** ${{ steps.anchor.outputs.success_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Failed:** ${{ steps.anchor.outputs.failure_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dry Run:** ${{ inputs.dry_run }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Capture Proofs:** ${{ inputs.capture_proofs }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Verify Image:** ${{ inputs.verify_image }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Fail on Failed:** ${{ inputs.fail_on_failed }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ inputs.capture_proofs }}" == "true" && -d "entries" ]]; then
+            entry_count=$(find entries -name '*.json' | wc -l)
+            echo "- **Inclusion Proofs:** $entry_count files in \`entries/\` directory" >> $GITHUB_STEP_SUMMARY
+          fi
