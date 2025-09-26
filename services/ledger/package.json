@@ -1,0 +1,12 @@
+{
+  "name": "@dreamaware/ledger-service",
+  "version": "1.0.0",
+  "description": "Ledger service with Vault integration",
+  "main": "server.go",
+  "scripts": {
+    "build": "go build -o bin/server server.go",
+    "dev": "go run server.go",
+    "start": "go run server.go"
+  },
+  "keywords": ["go", "ledger", "vault", "cryptography"]
+}

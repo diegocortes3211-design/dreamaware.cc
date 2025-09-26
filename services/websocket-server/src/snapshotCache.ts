@@ -290,3 +290,5 @@ export class StreamServer {
     };
   }
 }
+// Export with alias for backwards compatibility
+export const RollingSnapshotCache = SnapshotCache;

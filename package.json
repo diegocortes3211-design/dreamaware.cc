@@ -1,20 +1,37 @@
 {
-  "name": "ws-backpressure-starter",
+  "name": "dreamaware-monorepo",
   "version": "1.0.0",
-  "description": "",
-  "main": "dist/index.js",
+  "description": "DreamAware interactive visual experience monorepo",
+  "private": true,
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
   "scripts": {
-    "start": "node dist/index.js",
-    "dev": "tsc-watch --onSuccess \"node dist/index.js\"",
-    "build": "tsc"
+    "dev": "npm run dev --workspace=apps/main-app",
+    "dev:main": "npm run dev --workspace=apps/main-app", 
+    "dev:client": "npm run dev --workspace=apps/websocket-client",
+    "dev:server": "npm run dev --workspace=services/websocket-server",
+    "dev:ledger": "npm run dev --workspace=services/ledger",
+    "build": "npm run build --workspaces --if-present",
+    "build:main": "npm run build --workspace=apps/main-app",
+    "build:client": "npm run build --workspace=apps/websocket-client", 
+    "build:server": "npm run build --workspace=services/websocket-server",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "lint": "echo 'Linting skipped - needs proper TypeScript ESLint setup'",
+    "clean": "rm -rf apps/*/dist services/*/dist packages/*/dist",
+    "install-all": "npm install && npm install --workspaces"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["websocket", "particle-effects", "react", "visualization", "interactive", "monorepo"],
+  "author": "diegocortes3211-design",
   "license": "ISC",
   "devDependencies": {
     "@types/node": "^20.12.7",
-    "tsc-watch": "^6.2.0",
+    "concurrently": "^8.2.2",
+    "prettier": "^3.2.5",
     "typescript": "^5.4.5"
   }
 }
