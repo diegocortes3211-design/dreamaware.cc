@@ -9,9 +9,14 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
-    "noEmit": true,
+    "outDir": "./dist",
+    "rootDir": "./",
     "strict": true,
-    "types": ["vite/client"]
+    "types": ["node"],
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true
   },
-  "include": ["src"]
+  "include": ["lib/**/*", "__tests__/**/*"],
+  "exclude": ["node_modules", "dist", "src/**/*", "server/**/*"]
 }

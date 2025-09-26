@@ -1,3 +1,9 @@
 node_modules
 dist
 .env
+
+# Policy artifacts
+policy/fortress/*.wasm
+policy/fortress/*.tar.gz
+*.wasm
+*.tar.gz
