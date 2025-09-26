@@ -1,0 +1,64 @@
+name: Deploy Application to S3
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'client/**'
+      - '.github/workflows/deploy-app.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # Required for OIDC
+
+jobs:
+  deploy:
+    name: Build and Deploy to S3
+    runs-on: ubuntu-latest
+    env:
+      # The following secrets must be configured in the GitHub repository settings.
+      # The README in the oidc directory provides instructions for setting up the role.
+      # ARTIFACT_BUCKET_NAME should be the name of your S3 bucket.
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      ARTIFACT_BUCKET_NAME: ${{ secrets.ARTIFACT_BUCKET_NAME }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci --prefix client
+
+      - name: Build Application
+        run: npm run build --prefix client
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: deploy-app-${{ github.run_id }}
+
+      - name: Deploy to S3
+        if: env.ARTIFACT_BUCKET_NAME != ''
+        run: |
+          # Note: For public access, it is recommended to configure the S3 bucket for
+          # static website hosting and use a CloudFront distribution. This command
+          # only uploads the files; it does not make them publicly accessible.
+          aws s3 sync client/dist s3://${{ env.ARTIFACT_BUCKET_NAME }} --delete
+
+      - name: Invalidate CloudFront (Optional)
+        if: secrets.CF_DISTRIBUTION_ID != ''
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CF_DISTRIBUTION_ID }} \
+            --paths "/*"
