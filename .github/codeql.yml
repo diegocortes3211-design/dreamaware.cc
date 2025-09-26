@@ -1,0 +1,23 @@
+name: "DreamAware CodeQL Configuration"
+
+disable-default-queries: false
+
+queries:
+  - name: security-extended
+    uses: security-extended
+  - name: security-and-quality  
+    uses: security-and-quality
+
+paths-ignore:
+  - node_modules
+  - dist
+  - build
+  - coverage
+  - '**/*.min.js'
+  - '**/*.bundle.js'
+
+paths:
+  - src
+  - client/src
+  - server/src
+  - services

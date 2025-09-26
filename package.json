@@ -5,9 +5,12 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "start": "node dist/index.js",
-    "dev": "tsc-watch --onSuccess \"node dist/index.js\"",
-    "build": "tsc"
+    "start": "node server/dist/index.js",
+    "dev": "tsc-watch --project server/tsconfig.json --onSuccess \"node server/dist/index.js\"",
+    "build": "npm run build:static",
+    "build:static": "mkdir -p dist && cp index.html dist/ && cp -r public/* dist/ 2>/dev/null || true",
+    "build:server": "tsc --project server/tsconfig.json",
+    "build:client": "cd client && npm run build"
   },
   "keywords": [],
   "author": "",
@@ -16,5 +19,10 @@
     "@types/node": "^20.12.7",
     "tsc-watch": "^6.2.0",
     "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@types/ws": "^8.18.1",
+    "ws": "^8.18.3",
+    "zod": "^4.1.11"
   }
 }
