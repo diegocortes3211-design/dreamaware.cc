@@ -1,0 +1,42 @@
+{
+  "approved_targets": [
+    {
+      "pattern": "^10\\.0\\.0\\.[0-9]{1,3}$",
+      "description": "Internal network 10.0.0.x"
+    },
+    {
+      "pattern": "^192\\.168\\.1\\.[0-9]{1,3}$", 
+      "description": "Internal network 192.168.1.x"
+    },
+    {
+      "pattern": "^staging\\.example\\.com$",
+      "description": "Staging environment"
+    },
+    {
+      "pattern": "^test\\.internal\\.org$",
+      "description": "Test environment"
+    },
+    {
+      "pattern": "^scanme\\.nmap\\.org$",
+      "description": "Nmap test target"
+    },
+    {
+      "pattern": "^testphp\\.vulnweb\\.com$",
+      "description": "Vulnerable web app for testing"
+    }
+  ],
+  "scan_profiles": {
+    "recon": {
+      "max_intensity": 1,
+      "description": "Conservative reconnaissance scan"
+    },
+    "light": {
+      "max_intensity": 3,
+      "description": "Light scanning with basic service detection"
+    },
+    "full": {
+      "max_intensity": 5,
+      "description": "Comprehensive scan with all features"
+    }
+  }
+}
