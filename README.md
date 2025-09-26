@@ -2,6 +2,8 @@
 
 This project demonstrates a credit-based WebSocket backpressure system with rolling cached snapshots. It provides a foundational real-time data stream architecture for high-performance applications.
 
+The project also includes operational workflows for secure hash anchoring using Rekor transparency logs, with comprehensive retry mechanisms and monitoring capabilities.
+
 ## Project Structure
 
 - `server/`: Node.js and TypeScript WebSocket server
@@ -55,5 +57,9 @@ This starter project provides a robust foundation. Future enhancements could inc
  * Implementing worker threads and manifest-based snapshots for very large states.
  * Adding comprehensive metrics and health endpoints.
 <!-- end list -->
+
+## Operations
+
+- [Rekor Anchoring Workflow Runbook](docs/operations/rekor-anchoring-runbook.md) - Guide for operating the "Ops — Rekor Anchor" workflow
 
 ---
