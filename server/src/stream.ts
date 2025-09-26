@@ -2,7 +2,7 @@ type Listener = (tickId: number, delta: { count: number }) => void;
 
 export class Stream {
   readonly id: string;
-  private head = 0;
+  private head = 1; // Start with 1 to satisfy Zod validation
   private state = { count: 0 };
   private listeners = new Set<Listener>();
 
