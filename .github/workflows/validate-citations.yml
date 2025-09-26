@@ -1,0 +1,117 @@
+name: Validate Citations
+
+on:
+  push:
+    paths:
+      - 'citations/**'
+  pull_request:
+    paths:
+      - 'citations/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-citations:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install validation dependencies
+        run: |
+          npm install --no-save ajv ajv-formats
+
+      - name: Validate AI citations schema
+        id: validate
+        run: |
+          # Create validation script
+          cat > validate-citations.cjs << 'EOF'
+          const Ajv = require('ajv');
+          const addFormats = require('ajv-formats');
+          const fs = require('fs');
+          const path = require('path');
+
+          const ajv = new Ajv({ allErrors: true, verbose: true });
+          addFormats(ajv);
+
+          // Load schema
+          const schemaPath = path.join(process.cwd(), 'citations', 'schema.json');
+          const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
+
+          // Load citations data
+          const citationsPath = path.join(process.cwd(), 'citations', 'ai.json');
+          const citations = JSON.parse(fs.readFileSync(citationsPath, 'utf8'));
+
+          // Compile and validate
+          const validate = ajv.compile(schema);
+          const valid = validate(citations);
+
+          if (!valid) {
+            const errors = {
+              valid: false,
+              errors: validate.errors,
+              timestamp: new Date().toISOString()
+            };
+            fs.writeFileSync('ajv-errors.json', JSON.stringify(errors, null, 2));
+            console.error('❌ Validation failed:');
+            console.error(JSON.stringify(validate.errors, null, 2));
+            process.exit(1);
+          }
+
+          console.log('✅ Citations validation passed');
+          console.log(`📊 Validated ${citations.length} citations`);
+          
+          // Create success artifact
+          const success = {
+            valid: true,
+            count: citations.length,
+            timestamp: new Date().toISOString()
+          };
+          fs.writeFileSync('validation-success.json', JSON.stringify(success, null, 2));
+          EOF
+
+          node validate-citations.cjs
+
+      - name: Upload validation results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: citation-validation-results
+          path: |
+            ajv-errors.json
+            validation-success.json
+          retention-days: 30
+
+      - name: Generate job summary
+        if: always()
+        run: |
+          echo "# 📚 Citations Validation Results" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "validation-success.json" ]; then
+            COUNT=$(jq -r '.count' validation-success.json)
+            echo "✅ **Validation Status:** PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "📊 **Citations Count:** $COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All citations conform to the schema requirements." >> $GITHUB_STEP_SUMMARY
+          elif [ -f "ajv-errors.json" ]; then
+            echo "❌ **Validation Status:** FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "## Validation Errors" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat ajv-errors.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Validation Status:** UNKNOWN" >> $GITHUB_STEP_SUMMARY
+            echo "No validation results found." >> $GITHUB_STEP_SUMMARY
+          fi
