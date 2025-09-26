@@ -1,0 +1,65 @@
+version: 2
+updates:
+  # Enable version updates for npm dependencies in root
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "diegocortes3211-design"
+    assignees:
+      - "diegocortes3211-design"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
+  # Enable version updates for npm dependencies in client
+  - package-ecosystem: "npm"  
+    directory: "/client"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "diegocortes3211-design"
+    assignees:
+      - "diegocortes3211-design"
+    commit-message:
+      prefix: "deps(client)"
+      include: "scope"
+
+  # Enable version updates for Go modules in services
+  - package-ecosystem: "gomod"
+    directory: "/services/ledger"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "diegocortes3211-design"
+    assignees:
+      - "diegocortes3211-design"
+    commit-message:
+      prefix: "deps(ledger)"
+      include: "scope"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "diegocortes3211-design"
+    assignees:
+      - "diegocortes3211-design"
+    commit-message:
+      prefix: "ci"
+      include: "scope"

@@ -33,11 +33,51 @@ const snapshotCache = new RollingSnapshotCache(
 snapshotCache.start();
 
 const server = http.createServer((req, res) => {
+  // Set CORS headers for API endpoints
+  if (req.url?.startsWith('/api/')) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    
+    if (req.method === 'OPTIONS') {
+      res.writeHead(200).end();
+      return;
+    }
+  }
+
   if (req.url === "/") {
     res.writeHead(200).end("ws-backpressure-server\n");
   } else if (req.url === "/healthz") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(snapshotCache.stats()));
+  } else if (req.url === "/api/_csp-report" && req.method === "POST") {
+    // CSP violation reporting endpoint
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+    
+    req.on('end', () => {
+      try {
+        const report = JSON.parse(body);
+        const timestamp = new Date().toISOString();
+        
+        // Log CSP violation (in production, you might want to send to a monitoring service)
+        console.warn(`[CSP-VIOLATION] ${timestamp}:`, {
+          documentUri: report['csp-report']?.['document-uri'],
+          violatedDirective: report['csp-report']?.['violated-directive'], 
+          blockedUri: report['csp-report']?.['blocked-uri'],
+          sourceFile: report['csp-report']?.['source-file'],
+          lineNumber: report['csp-report']?.['line-number'],
+          originalPolicy: report['csp-report']?.['original-policy']
+        });
+        
+        res.writeHead(204).end(); // No content response
+      } catch (error) {
+        console.error('[CSP-REPORT] Invalid report format:', error);
+        res.writeHead(400).end('Invalid report format');
+      }
+    });
   } else {
     res.writeHead(404).end("not found");
   }

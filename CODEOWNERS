@@ -1,0 +1,36 @@
+# CODEOWNERS file for DreamAware
+# This file defines who is responsible for reviewing changes to specific files/directories
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global fallback
+* @diegocortes3211-design
+
+# Security-sensitive files require explicit review
+SECURITY.md @diegocortes3211-design
+CODEOWNERS @diegocortes3211-design
+
+# Workflow and CI/CD files
+.github/ @diegocortes3211-design
+.github/workflows/ @diegocortes3211-design
+.github/*.yml @diegocortes3211-design
+.github/*.yaml @diegocortes3211-design
+
+# Configuration files that could affect security
+**/package.json @diegocortes3211-design
+**/package-lock.json @diegocortes3211-design
+**/tsconfig.json @diegocortes3211-design
+**/vite.config.* @diegocortes3211-design
+**/.env* @diegocortes3211-design
+**/Dockerfile* @diegocortes3211-design
+**/docker-compose* @diegocortes3211-design
+
+# Server-side code (potential security impact)
+server/ @diegocortes3211-design
+services/ @diegocortes3211-design
+
+# Root configuration files  
+/.gitignore @diegocortes3211-design
+/LICENSE @diegocortes3211-design
+
+# HTML files that contain security headers
+**/index.html @diegocortes3211-design

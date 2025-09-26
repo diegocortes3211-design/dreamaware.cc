@@ -1,0 +1,52 @@
+[extend]
+useDefault = true
+
+[rules.generic-api-key]
+description = "Generic API Key"
+regex = '''(?i)(?:key|api|token|secret|password)['"]*\s*[:=]\s*['"][0-9a-zA-Z]{32,}['"]'''
+path = '''.*\.(js|ts|jsx|tsx|json|yaml|yml|env)$'''
+
+[[rules.generic-api-key.allowlist]]
+description = "ignore test keys and examples"
+regex = '''(test|example|dummy|fake|mock)'''
+
+[[rules.generic-api-key.allowlist]]
+description = "ignore localhost URLs"
+regex = '''localhost|127\.0\.0\.1'''
+
+[rules.github-pat]
+description = "GitHub Personal Access Token"
+regex = '''ghp_[0-9a-zA-Z]{36}'''
+
+[rules.github-oauth]
+description = "GitHub OAuth Access Token"  
+regex = '''gho_[0-9a-zA-Z]{36}'''
+
+[rules.slack-token]
+description = "Slack Token"
+regex = '''xox[baprs]-([0-9a-zA-Z]{10,48})?'''
+
+[rules.aws-secret-key]
+description = "AWS Secret Access Key"
+regex = '''(?i)aws(.{0,20})?['\"][0-9a-zA-Z\/+]{40}['\"]'''
+
+[rules.private-key]
+description = "Private Key"
+regex = '''-----BEGIN (.*)PRIVATE KEY-----'''
+
+[[rules.private-key.allowlist]]
+description = "ignore test certificates"  
+regex = '''test|example|demo'''
+
+# Additional allowlist patterns for common false positives
+[[allowlist]]
+description = "ignore package-lock.json resolved URLs"
+path = '''package-lock\.json'''
+
+[[allowlist]]
+description = "ignore node_modules"
+path = '''node_modules/.*'''
+
+[[allowlist]]  
+description = "ignore build outputs"
+path = '''(dist|build|coverage)/.*'''
