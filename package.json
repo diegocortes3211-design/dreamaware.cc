@@ -1,20 +1,40 @@
 {
-  "name": "ws-backpressure-starter",
+  "name": "dreamaware",
   "version": "1.0.0",
-  "description": "",
-  "main": "dist/index.js",
+  "description": "Interactive visual experience with WebSocket streaming and particle effects",
   "type": "module",
   "scripts": {
-    "start": "node dist/index.js",
-    "dev": "tsc-watch --onSuccess \"node dist/index.js\"",
-    "build": "tsc"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "dev:all": "concurrently \"npm run dev:server\" \"npm run dev:client\" \"npm run dev\""
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["websocket", "particle-effects", "react", "visualization", "interactive"],
+  "author": "diegocortes3211-design",
   "license": "ISC",
+  "dependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
   "devDependencies": {
     "@types/node": "^20.12.7",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "@typescript-eslint/eslint-plugin": "^7.2.0",
+    "@typescript-eslint/parser": "^7.2.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.6",
+    "prettier": "^3.2.5",
     "tsc-watch": "^6.2.0",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vite": "^5.2.0"
   }
 }
