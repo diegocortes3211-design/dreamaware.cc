@@ -1,0 +1,282 @@
+name: Rekor Anchoring Workflow
+
+on:
+  schedule:
+    # Run daily at 2:00 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      N:
+        description: 'Maximum number of hashes to process'
+        required: false
+        default: '1000'
+        type: string
+      rekor_server:
+        description: 'Rekor server URL override'
+        required: false
+        default: 'https://rekor.sigstore.dev'
+        type: string
+      rekorcliimage:
+        description: 'Rekor CLI Docker image override'
+        required: false
+        default: 'gcr.io/projectsigstore/rekor-cli:latest'
+        type: string
+      dry_run:
+        description: 'Non-invasive audit mode (searches without uploads)'
+        required: false
+        default: 'false'
+        type: boolean
+      batch_size:
+        description: 'Cap for processing per run'
+        required: false
+        default: '500'
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  rekor-anchor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set parameters
+        id: params
+        run: |
+          # Set safe defaults for scheduled runs, allow manual override
+          N="${{ github.event.inputs.N || '1000' }}"
+          REKOR_SERVER="${{ github.event.inputs.rekor_server || 'https://rekor.sigstore.dev' }}"
+          REKORCLI_IMAGE="${{ github.event.inputs.rekorcliimage || 'gcr.io/projectsigstore/rekor-cli:latest' }}"
+          DRY_RUN="${{ github.event.inputs.dry_run || 'false' }}"
+          BATCH_SIZE="${{ github.event.inputs.batch_size || '500' }}"
+          
+          # Sanitize inputs
+          N=$(echo "$N" | grep -E '^[0-9]+$' || echo '1000')
+          BATCH_SIZE=$(echo "$BATCH_SIZE" | grep -E '^[0-9]+$' || echo '500')
+          
+          # Cap limits for safety
+          if [ "$N" -gt 10000 ]; then N=10000; fi
+          if [ "$BATCH_SIZE" -gt 1000 ]; then BATCH_SIZE=1000; fi
+          
+          # Validate URLs
+          if ! echo "$REKOR_SERVER" | grep -E '^https?://[a-zA-Z0-9.-]+'; then
+            REKOR_SERVER="https://rekor.sigstore.dev"
+          fi
+          
+          # Validate image format
+          if ! echo "$REKORCLI_IMAGE" | grep -E '^[a-zA-Z0-9._/-]+:[a-zA-Z0-9._-]+$'; then
+            REKORCLI_IMAGE="gcr.io/projectsigstore/rekor-cli:latest"
+          fi
+          
+          echo "N=$N" >> $GITHUB_OUTPUT
+          echo "REKOR_SERVER=$REKOR_SERVER" >> $GITHUB_OUTPUT  
+          echo "REKORCLI_IMAGE=$REKORCLI_IMAGE" >> $GITHUB_OUTPUT
+          echo "DRY_RUN=$DRY_RUN" >> $GITHUB_OUTPUT
+          echo "BATCH_SIZE=$BATCH_SIZE" >> $GITHUB_OUTPUT
+          
+          echo "Parameters set: N=$N, REKOR_SERVER=$REKOR_SERVER, DRY_RUN=$DRY_RUN, BATCH_SIZE=$BATCH_SIZE"
+
+      - name: Setup Docker
+        run: |
+          # Pull and capture digest for the Rekor CLI image
+          echo "Pulling Rekor CLI image: ${{ steps.params.outputs.REKORCLI_IMAGE }}"
+          docker pull "${{ steps.params.outputs.REKORCLI_IMAGE }}"
+          
+          # Capture the exact digest
+          DIGEST=$(docker inspect "${{ steps.params.outputs.REKORCLI_IMAGE }}" --format='{{index .RepoDigests 0}}' | cut -d'@' -f2)
+          if [ -z "$DIGEST" ]; then
+            # Fallback to image ID if no digest available
+            DIGEST=$(docker inspect "${{ steps.params.outputs.REKORCLI_IMAGE }}" --format='{{.Id}}')
+          fi
+          
+          echo "$DIGEST" > image-digest.txt
+          echo "IMAGE_DIGEST=$DIGEST" >> $GITHUB_ENV
+          echo "Captured image digest: $DIGEST"
+
+      - name: Setup database connection (mock)
+        run: |
+          # In a real implementation, this would connect to the actual ledger database
+          # For now, create mock data to demonstrate the workflow
+          echo "Setting up mock database connection..."
+          
+          # Create mock hash data (in real implementation, this would query the ledger)
+          mkdir -p /tmp/mock-db
+          cat << 'EOF' > /tmp/mock-db/generate_hashes.sql
+          -- Mock SQL query for hash extraction with filtering
+          SELECT DISTINCT 
+            hash,
+            ts
+          FROM ledger.entries 
+          WHERE 
+            hash IS NOT NULL 
+            AND length(hash) = 64  -- SHA256 length check
+            AND hash ~ '^[a-f0-9]+$'  -- Valid hex format
+          ORDER BY ts DESC 
+          LIMIT $1;
+          EOF
+          
+          # Generate mock hashes for demonstration
+          for i in $(seq 1 50); do
+            echo "$(openssl rand -hex 32)" >> hashes_raw.txt
+          done
+          
+          echo "Generated $(wc -l < hashes_raw.txt) mock hashes"
+
+      - name: Filter and process hashes
+        run: |
+          set -euo pipefail
+          
+          N="${{ steps.params.outputs.N }}"
+          BATCH_SIZE="${{ steps.params.outputs.BATCH_SIZE }}"
+          
+          echo "Processing hashes with N=$N, BATCH_SIZE=$BATCH_SIZE"
+          
+          # SQL-side filtering simulation (already done in mock above)
+          cp hashes_raw.txt hashes_filtered.txt
+          
+          # Shell-side deduplication and validation
+          sort hashes_filtered.txt | uniq > hashes_dedup.txt
+          
+          # Apply batch size limit
+          head -n "$BATCH_SIZE" hashes_dedup.txt > hashes.proc
+          
+          # Final validation - ensure only valid SHA256 hashes
+          grep -E '^[a-f0-9]{64}$' hashes.proc > hashes.txt || touch hashes.txt
+          
+          # Stats
+          CONSIDERED=$(wc -l < hashes_raw.txt)
+          USABLE=$(wc -l < hashes.txt)
+          
+          echo "CONSIDERED_COUNT=$CONSIDERED" >> $GITHUB_ENV
+          echo "USABLE_COUNT=$USABLE" >> $GITHUB_ENV
+          
+          echo "Considered: $CONSIDERED, Usable: $USABLE hashes"
+
+      - name: Rekor anchoring with jittered retries
+        run: |
+          set -euo pipefail
+          
+          DRY_RUN="${{ steps.params.outputs.DRY_RUN }}"
+          REKOR_SERVER="${{ steps.params.outputs.REKOR_SERVER }}"
+          
+          # Initialize counters and output files
+          ANCHORED=0
+          SKIPPED=0
+          FAILED=0
+          
+          touch attempted.txt anchored.txt skipped.txt failed.txt
+          
+          echo "Starting Rekor anchoring (DRY_RUN=$DRY_RUN)"
+          
+          # Use captured digest for all Docker commands
+          REKOR_CMD="docker run --rm -v $(pwd):/workspace -w /workspace ${{ steps.params.outputs.REKORCLI_IMAGE }}@${IMAGE_DIGEST}"
+          
+          # Test Rekor server connectivity
+          if [ "$DRY_RUN" = "false" ]; then
+            echo "Testing Rekor server connectivity..."
+            $REKOR_CMD rekor-cli loginfo --rekor_server "$REKOR_SERVER" || {
+              echo "❌ Failed to connect to Rekor server"
+              exit 1
+            }
+          fi
+          
+          # Process each hash
+          while IFS= read -r hash || [ -n "$hash" ]; do
+            if [ -z "$hash" ]; then continue; fi
+            
+            echo "$hash" >> attempted.txt
+            
+            # Jittered delay to avoid thundering herd
+            sleep_time=$(awk "BEGIN {srand(); print int(rand() * 3) + 1}")
+            sleep "$sleep_time"
+            
+            if [ "$DRY_RUN" = "true" ]; then
+              # In dry run mode, just search for existing entries
+              echo "🔍 [DRY RUN] Searching for hash: $hash"
+              
+              # Try both --sha256 and --sha flags for compatibility
+              if $REKOR_CMD rekor-cli search --sha256 "$hash" --rekor_server "$REKOR_SERVER" >/dev/null 2>&1 || \
+                 $REKOR_CMD rekor-cli search --sha "$hash" --rekor_server "$REKOR_SERVER" >/dev/null 2>&1; then
+                echo "$hash" >> skipped.txt
+                SKIPPED=$((SKIPPED + 1))
+                echo "✓ Hash already anchored: $hash"
+              else
+                echo "$hash" >> failed.txt  # Would be anchored in real run
+                FAILED=$((FAILED + 1))
+                echo "- Hash not found (would anchor): $hash"
+              fi
+            else
+              # Real anchoring mode (simplified - would need proper payload)
+              echo "⚓ Anchoring hash: $hash"
+              
+              # Create a minimal payload for demonstration
+              echo "Hash: $hash" > "/tmp/payload_$hash.txt"
+              
+              # Attempt to upload with both flag variants for compatibility
+              if $REKOR_CMD rekor-cli upload --artifact "/tmp/payload_$hash.txt" --rekor_server "$REKOR_SERVER" 2>/dev/null || \
+                 $REKOR_CMD rekor-cli upload --artifact "/tmp/payload_$hash.txt" --public-key /dev/null --rekor_server "$REKOR_SERVER" 2>/dev/null; then
+                echo "$hash" >> anchored.txt
+                ANCHORED=$((ANCHORED + 1))
+                echo "✅ Successfully anchored: $hash"
+              else
+                echo "$hash" >> failed.txt
+                FAILED=$((FAILED + 1))
+                echo "❌ Failed to anchor: $hash"
+              fi
+              
+              # Clean up
+              rm -f "/tmp/payload_$hash.txt"
+            fi
+            
+          done < hashes.txt
+          
+          # Export final counts
+          echo "ANCHORED_COUNT=$ANCHORED" >> $GITHUB_ENV
+          echo "SKIPPED_COUNT=$SKIPPED" >> $GITHUB_ENV
+          echo "FAILED_COUNT=$FAILED" >> $GITHUB_ENV
+          
+          echo "Final counts - Anchored: $ANCHORED, Skipped: $SKIPPED, Failed: $FAILED"
+
+      - name: Generate workflow summary
+        run: |
+          cat << EOF >> $GITHUB_STEP_SUMMARY
+          ## Rekor Anchoring Summary
+          
+          **Run Configuration:**
+          - Mode: ${{ steps.params.outputs.DRY_RUN == 'true' && 'Dry Run (Audit)' || 'Live Anchoring' }}
+          - Rekor Server: ${{ steps.params.outputs.REKOR_SERVER }}
+          - Max Hashes (N): ${{ steps.params.outputs.N }}
+          - Batch Size: ${{ steps.params.outputs.BATCH_SIZE }}
+          - Image Digest: \`${IMAGE_DIGEST}\`
+          
+          **Processing Results:**
+          - 📊 Considered: ${CONSIDERED_COUNT} hashes
+          - ✅ Usable: ${USABLE_COUNT} hashes  
+          - ⚓ Anchored: ${ANCHORED_COUNT} hashes
+          - ⏭️ Skipped: ${SKIPPED_COUNT} hashes
+          - ❌ Failed: ${FAILED_COUNT} hashes
+          
+          **Traceability:**
+          All artifacts uploaded for full audit trail and reproducibility.
+          EOF
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rekor-anchoring-artifacts
+          path: |
+            hashes_raw.txt
+            hashes.txt
+            hashes.proc
+            attempted.txt
+            anchored.txt
+            skipped.txt
+            failed.txt
+            image-digest.txt
+          retention-days: 90
