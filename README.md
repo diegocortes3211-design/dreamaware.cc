@@ -1,59 +1,69 @@
-# ws-backpressure-starter
+# DreamAware Xikizpedia Integration
 
-This project demonstrates a credit-based WebSocket backpressure system with rolling cached snapshots. It provides a foundational real-time data stream architecture for high-performance applications.
+A production-ready WebSocket server with PostgreSQL integration, featuring enterprise-grade security, RBAC, and real-time capabilities.
 
-## Project Structure
+## 🚀 Features
 
-- `server/`: Node.js and TypeScript WebSocket server
-  - Implements credit-based flow control.
-  - Utilizes a non-blocking rolling snapshot cache (500ms interval).
-  - Simulates a stream of deltas.
-- `client/`: Vite and TypeScript web client
-  - Connects to the WebSocket server.
-  - Implements client-side credit management and message draining.
-  - Provides a simple UI to visualize stream statistics and test backpressure (pause/resume).
+- ✅ **Enterprise Security**: Helmet.js security headers, rate limiting, payload size controls
+- ✅ **Database Integration**: PostgreSQL with JSONB GIN indexing and full-text search  
+- ✅ **RBAC Support**: Role-based access control with development defaults
+- ✅ **Real-time WebSocket**: Credit-based backpressure with rate limiting per role
+- ✅ **RESTful API**: Complete CRUD operations for Xikizpedia entries
+- ✅ **SHA-256 Addressing**: Content-addressed storage with 8-character void IDs
+- ✅ **Docker Development**: One-command local PostgreSQL setup
+- ✅ **CI/CD Ready**: Automated testing with database services
 
-## Quickstart
-
-### 1. Clone the repository
+## 🏁 Quick Start
 
 ```bash
-# This step is already done since you've created files locally and committed
-# git clone <YOUR_REPO_URL>
-# cd ws-backpressure-starter
-```
+# Install dependencies
+npm install && cd server && npm install && cd ../client && npm install && cd ..
 
-### 2. Setup and Run the Server
-Navigate to the server directory, install dependencies, and start the server.
-```bash
-cd server
-npm install
+# Start database
+docker compose up -d postgres
+
+# Setup database
+npm run db:migrate && npm run db:seed  
+
+# Start development servers
 npm run dev
 ```
 
-The server will start on ws://localhost:8080/stream.
-### 3. Setup and Run the Client
-In a separate terminal, navigate to the client directory, install dependencies, and start the client.
+**Endpoints:**
+- HTTP API: `http://localhost:8080`
+- WebSocket: `ws://localhost:8080/stream` 
+- Client: `http://localhost:3000`
+
+## 📡 API Examples
+
 ```bash
-cd ../client
-npm install
-npm run dev
+# Health check
+curl http://localhost:8080/health
+
+# Create entry
+curl -X POST http://localhost:8080/api/xikizpedia/entries \
+  -H "Content-Type: application/json" \
+  -d '{"textContent": "Your wisdom here", "metadata": {"type": "knowledge"}}'
+
+# Search entries  
+curl "http://localhost:8080/api/xikizpedia/search?q=wisdom"
+
+# Get by void ID
+curl http://localhost:8080/api/xikizpedia/entries/{voidId}
 ```
 
-Open the provided local URL in your browser (e.g., http://localhost:5173).
-### Verification
-In the client UI:
- * Observe the streaming tickId, queue length, credits, count, snapshots applied, and deltas applied KPIs.
- * Click Pause Drain to simulate a stalled client or a hidden browser tab.
-   * We should see the queue length grow as the server continues to send messages.
-   * The tickId will advance approximately every 500ms as the cached snapshot updates, demonstrating non-blocking snapshot delivery.
- * Click Resume Drain to observe the client rapidly catching up on the queued messages.
-### Next Steps
-This starter project provides a robust foundation. Future enhancements could include:
- * Integrating actual graph data (nodes and edges) into the stream and snapshot.
- * Developing the instanced renderer on the client-side using libraries like Pixi.js.
- * Implementing worker threads and manifest-based snapshots for very large states.
- * Adding comprehensive metrics and health endpoints.
-<!-- end list -->
+## 🏗️ Architecture
+
+- **Backend**: Node.js + TypeScript + Express + WebSocket
+- **Database**: PostgreSQL 15 with JSONB and full-text search
+- **Security**: Helmet.js, express-rate-limit, Zod validation
+- **Real-time**: WebSocket with credit-based flow control
+- **Development**: Docker Compose, automated migrations
+
+## 📚 Documentation
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed setup, testing, and deployment instructions.
 
 ---
+
+*Built with enterprise-grade patterns for scalable, secure real-time applications.*

@@ -1,9 +1,20 @@
 #!/usr/bin/env node
 
 import pg from 'pg';
-import { config } from '../server/src/config/index.js';
 
 const { Client } = pg;
+
+// Configuration from environment variables
+const config = {
+  database: {
+    url: process.env.DATABASE_URL || 'postgresql://xikizpedia:devpassword123@localhost:5432/xikizpedia_dev',
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || '5432', 10),
+    name: process.env.DB_NAME || 'xikizpedia_dev',
+    user: process.env.DB_USER || 'xikizpedia',
+    password: process.env.DB_PASSWORD || 'devpassword123',
+  }
+};
 
 const seedData = [
   {
