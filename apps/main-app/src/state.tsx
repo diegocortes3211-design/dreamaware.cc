@@ -5,11 +5,11 @@ export type PresetKey = "lsd" | "mdma" | "ket";
 export type Settings = {
   preset: PresetKey;
   orbColor: string;
-  bgHue: number;          // 0..360
-  spawn: number;          // orbs per tick at high speed
-  speed: number;          // orb velocity
-  trail: number;          // fade factor
-  gravity: number;        // pull toward center
+  bgHue: number; // 0..360
+  spawn: number; // orbs per tick at high speed
+  speed: number; // orb velocity
+  trail: number; // fade factor
+  gravity: number; // pull toward center
   audioReactive: boolean; // reserved
 };
 
@@ -21,7 +21,7 @@ const defaults: Settings = {
   speed: 1.2,
   trail: 0.08,
   gravity: 0.03,
-  audioReactive: false
+  audioReactive: false,
 };
 
 const Ctx = createContext<{
@@ -43,7 +43,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem("dreamaware.settings", JSON.stringify(next));
           return next;
         });
-      }
+      },
     }),
     [settings]
   );

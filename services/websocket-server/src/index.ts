@@ -4,7 +4,7 @@ import { z } from "zod";
 import { clamp, nowMs } from "./util.js";
 import { ClientMsg, Hello, Credit, Pong, Welcome, Delta, Snapshot, Ping, Bye } from "./types.js";
 import { Stream } from "./stream.js";
-import { RollingSnapshotCache } from "./snapshotCache.js";
+import { RollingSnapshotCache } from "./rollingSnapshotCache.js";
 
 /** Config */
 const PORT = 8080;
@@ -62,9 +62,12 @@ wss.on("connection", (ws, req) => {
   // ... rest of the connection logic
 });
 
-/** Build & enqueue snapshot for a connection */
 function enqueueSnapshot(conn: ConnState) {
   const view = snapshotCache.view(); // cached, ≤500ms fresh
+  if (!view) {
+    console.warn('No cached snapshot available');
+    return;
+  }
   conn.sendQ.push({
     type: "snapshot",
     bytes: view.bytes.toString("utf8"),

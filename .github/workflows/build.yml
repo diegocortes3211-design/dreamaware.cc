@@ -1,0 +1,102 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-web-apps:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [main-app, websocket-client]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: |
+        npm ci
+        npm ci --workspace=apps/${{ matrix.app }}
+    
+    - name: Build app
+      run: npm run build:${{ matrix.app == 'main-app' && 'main' || 'client' }}
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.app }}-dist
+        path: apps/${{ matrix.app }}/dist
+
+  build-websocket-server:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: |
+        npm ci
+        npm ci --workspace=services/websocket-server
+    
+    - name: Build server
+      run: npm run build:server
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: websocket-server-dist
+        path: services/websocket-server/dist
+
+  build-ledger-service:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.19'
+    
+    - name: Build Go service
+      working-directory: services/ledger
+      run: go build -o bin/server server.go
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ledger-service-bin
+        path: services/ledger/bin
+
+  format-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Check formatting
+      run: npm run format:check

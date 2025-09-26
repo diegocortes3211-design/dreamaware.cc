@@ -1,59 +1,205 @@
-# ws-backpressure-starter
+# DreamAware Interactive Experience
 
-This project demonstrates a credit-based WebSocket backpressure system with rolling cached snapshots. It provides a foundational real-time data stream architecture for high-performance applications.
+A modern monorepo containing interactive visual applications with real-time WebSocket streaming, particle effects, and cryptographic ledger services.
 
-## Project Structure
+## 🏗️ Repository Structure
 
-- `server/`: Node.js and TypeScript WebSocket server
-  - Implements credit-based flow control.
-  - Utilizes a non-blocking rolling snapshot cache (500ms interval).
-  - Simulates a stream of deltas.
-- `client/`: Vite and TypeScript web client
-  - Connects to the WebSocket server.
-  - Implements client-side credit management and message draining.
-  - Provides a simple UI to visualize stream statistics and test backpressure (pause/resume).
-
-## Quickstart
-
-### 1. Clone the repository
-
-```bash
-# This step is already done since you've created files locally and committed
-# git clone <YOUR_REPO_URL>
-# cd ws-backpressure-starter
+```
+dreamaware.cc/
+├── apps/                           # Frontend Applications
+│   ├── main-app/                   # React particle effects demo
+│   │   ├── src/                    # React components & logic
+│   │   ├── public/                 # Static assets
+│   │   └── package.json
+│   ├── websocket-client/           # WebSocket backpressure demo
+│   │   ├── src/                    # Client implementation
+│   │   └── package.json
+│   └── orb-demo.html              # Standalone HTML/JS demo
+├── services/                       # Backend Services
+│   ├── websocket-server/          # WebSocket server with flow control
+│   │   ├── src/                   # TypeScript server code
+│   │   └── package.json
+│   └── ledger/                    # Cryptographic ledger service
+│       ├── server.go              # Go implementation
+│       └── package.json
+├── packages/                       # Shared libraries (future)
+├── tools/                         # Build tools & scripts (future)
+├── docs/                          # Documentation (future)
+└── package.json                   # Workspace root
 ```
 
-### 2. Setup and Run the Server
-Navigate to the server directory, install dependencies, and start the server.
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 18+ for web applications
+- Go 1.19+ for ledger service
+- CockroachDB for ledger persistence (optional)
+
+### Development
+
 ```bash
-cd server
-npm install
-npm run dev
+# Install all dependencies
+npm run install-all
+
+# Start the main React app (particle effects)
+npm run dev:main
+
+# Start the WebSocket demo client
+npm run dev:client  
+
+# Start the WebSocket server
+npm run dev:server
+
+# Start the Go ledger service
+npm run dev:ledger
 ```
 
-The server will start on ws://localhost:8080/stream.
-### 3. Setup and Run the Client
-In a separate terminal, navigate to the client directory, install dependencies, and start the client.
+### Building
+
 ```bash
-cd ../client
-npm install
-npm run dev
+# Build all projects
+npm run build
+
+# Build specific projects
+npm run build:main
+npm run build:client
+npm run build:server
 ```
 
-Open the provided local URL in your browser (e.g., http://localhost:5173).
-### Verification
-In the client UI:
- * Observe the streaming tickId, queue length, credits, count, snapshots applied, and deltas applied KPIs.
- * Click Pause Drain to simulate a stalled client or a hidden browser tab.
-   * We should see the queue length grow as the server continues to send messages.
-   * The tickId will advance approximately every 500ms as the cached snapshot updates, demonstrating non-blocking snapshot delivery.
- * Click Resume Drain to observe the client rapidly catching up on the queued messages.
-### Next Steps
-This starter project provides a robust foundation. Future enhancements could include:
- * Integrating actual graph data (nodes and edges) into the stream and snapshot.
- * Developing the instanced renderer on the client-side using libraries like Pixi.js.
- * Implementing worker threads and manifest-based snapshots for very large states.
- * Adding comprehensive metrics and health endpoints.
-<!-- end list -->
+## 🎨 Applications
+
+### Main App (`apps/main-app`)
+Interactive particle effects system with:
+- Real-time particle physics
+- Customizable visual presets (LSD, MDMA, Ket themes)
+- Mouse-driven particle spawning
+- React + TypeScript + Vite
+
+**URL**: `http://localhost:5173`
+
+### WebSocket Client (`apps/websocket-client`)
+Demonstrates backpressure handling with:
+- Credit-based flow control
+- Queue length visualization
+- Pause/resume functionality
+- Real-time metrics display
+
+**URL**: `http://localhost:3000`
+
+### Standalone Orb Demo (`apps/orb-demo.html`)
+Complete HTML/JS implementation featuring:
+- Canvas-based particle system
+- Text orbit animations
+- Interactive controls
+- No build step required
+
+## 🔧 Services
+
+### WebSocket Server (`services/websocket-server`)
+High-performance streaming server with:
+- Credit-based backpressure management
+- Rolling snapshot cache (500ms intervals)
+- Non-blocking delta streaming
+- TypeScript + Node.js
+
+**Port**: `8080`
+
+### Ledger Service (`services/ledger`)
+Cryptographic ledger with:
+- Vault Transit Ed25519 signatures
+- CockroachDB persistence
+- RESTful append-only API
+- Go implementation
+
+**Port**: `8088`
+
+## 🛠️ Development Tools
+
+### Code Quality
+```bash
+# Format all code
+npm run format
+
+# Check formatting
+npm run format:check
+
+# Lint (basic setup)
+npm run lint
+
+# Clean build artifacts
+npm run clean
+```
+
+### Configuration Files
+- **Prettier**: `.prettierrc` - Code formatting rules
+- **ESLint**: `.eslintrc.json` - Basic linting (needs TypeScript setup)
+- **TypeScript**: `tsconfig.json` - Individual per-app configs
+- **Vite**: `vite.config.ts` - Build configuration for web apps
+
+## 🏃‍♂️ Running Everything Together
+
+For full-stack development:
+
+```bash
+# Terminal 1: WebSocket Server
+npm run dev:server
+
+# Terminal 2: Ledger Service  
+npm run dev:ledger
+
+# Terminal 3: WebSocket Client
+npm run dev:client
+
+# Terminal 4: Main App
+npm run dev:main
+```
+
+## 📋 Features
+
+### Visual Effects
+- ✅ Particle physics simulation
+- ✅ Mouse interaction
+- ✅ Color themes and presets
+- ✅ Trail effects and glows
+- ✅ Real-time parameter adjustment
+
+### WebSocket Streaming
+- ✅ Credit-based flow control
+- ✅ Backpressure handling
+- ✅ Rolling snapshots
+- ✅ Delta compression
+- ✅ Client pause/resume
+
+### Cryptography
+- ✅ Ed25519 signatures via HashiCorp Vault
+- ✅ Append-only ledger
+- ✅ Secure payload handling
+- ✅ Database transactions
+
+## 🎯 Future Enhancements
+
+- [ ] Shared TypeScript types package
+- [ ] CI/CD pipeline setup
+- [ ] Docker containerization  
+- [ ] Comprehensive test suites
+- [ ] Performance monitoring
+- [ ] Security audit tooling
+- [ ] Documentation site generation
+
+## 📄 License
+
+ISC License - see LICENSE file for details.
+
+## 🤝 Contributing
+
+This repository is organized as a modern monorepo with clear separation of concerns. Each application and service is self-contained with its own build process and dependencies.
+
+For development:
+1. Choose the app/service you want to work on
+2. Navigate to its directory
+3. Review its individual README (coming soon)
+4. Use the appropriate npm workspace commands from the root
 
 ---
+
+Built with ❤️ for interactive visual experiences and real-time data streaming.
