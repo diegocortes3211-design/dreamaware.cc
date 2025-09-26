@@ -136,21 +136,21 @@ class FortressPolicyClient implements PolicyClient {
 }
 
 // Factory functions for different policy types
-export const createLedgerPolicyClient = (options: Omit<PolicyClientOptions, 'policyUrl'> = {}): PolicyClient => {
+export const createLedgerPolicyClient = (options: PolicyClientOptions = {}): PolicyClient => {
   return new FortressPolicyClient({
     ...options,
     policyUrl: options.policyUrl || '/policy/ledger.wasm'
   });
 };
 
-export const createApiPolicyClient = (options: Omit<PolicyClientOptions, 'policyUrl'> = {}): PolicyClient => {
+export const createApiPolicyClient = (options: PolicyClientOptions = {}): PolicyClient => {
   return new FortressPolicyClient({
     ...options,
     policyUrl: options.policyUrl || '/policy/api.wasm'
   });
 };
 
-export const createRuntimePolicyClient = (options: Omit<PolicyClientOptions, 'policyUrl'> = {}): PolicyClient => {
+export const createRuntimePolicyClient = (options: PolicyClientOptions = {}): PolicyClient => {
   return new FortressPolicyClient({
     ...options,
     policyUrl: options.policyUrl || '/policy/runtime.wasm'
