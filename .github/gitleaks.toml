@@ -1,0 +1,52 @@
+# Gitleaks configuration file
+# Designed to reduce false positives for this project
+
+[extend]
+# Use the default Gitleaks rules
+useDefault = true
+
+# Paths to ignore
+[[rules.allowlist]]
+description = "Ignore test files and documentation"
+paths = [
+  ".*test.*",
+  ".*spec.*", 
+  ".*/test/.*",
+  ".*/tests/.*",
+  ".*README.*",
+  ".*\\.md$",
+  ".*\\.txt$"
+]
+
+[[rules.allowlist]]
+description = "Ignore public keys and known safe strings"
+regexes = [
+  "ssh-rsa AAAA[0-9A-Za-z+/]+[=]{0,3}( .*)?", # SSH public keys
+  "BEGIN PUBLIC KEY",
+  "END PUBLIC KEY",
+  "BEGIN CERTIFICATE",
+  "END CERTIFICATE"
+]
+
+[[rules.allowlist]]
+description = "Ignore example/placeholder values"
+regexes = [
+  "(?i)example",
+  "(?i)placeholder", 
+  "(?i)todo",
+  "(?i)fixme",
+  "(?i)changeme",
+  "(?i)your.*(key|token|secret|password)",
+  "(?i)(key|token|secret|password).*here"
+]
+
+[[rules.allowlist]]
+description = "Ignore common non-secret patterns"
+regexes = [
+  "^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$", # UUIDs
+  "^[0-9]{10,13}$", # Timestamps
+  "^#[0-9a-fA-F]{3,8}$", # Color codes
+  "localhost",
+  "127\\.0\\.0\\.1",
+  "\\$\\{.*\\}" # Environment variable references
+]

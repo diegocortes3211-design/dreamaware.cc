@@ -1,3 +1,52 @@
-node_modules
-dist
+node_modules/
+dist/
+.DS_Store
+
+# Environment and secrets
 .env
+.env.local
+.env.*.local
+*.key
+*.pem
+*.crt
+
+# Build artifacts
+build/
+out/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+
+# Coverage and test reports
+coverage/
+.nyc_output/
+.coverage/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+.temp/
+
+# Security scan results
+gitleaks-report.json
+*.sarif

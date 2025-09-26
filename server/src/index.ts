@@ -5,10 +5,19 @@ import { clamp, nowMs } from "./util.js";
 import { ClientMsg, Hello, Credit, Pong, Welcome, Delta, Snapshot, Ping, Bye } from "./types.js";
 import { Stream } from "./stream.js";
 import { RollingSnapshotCache } from "./snapshotCache.js";
+import { securityMiddleware, cspReportHandler } from "./middleware.js";
 
 /** Config */
 const PORT = 8080;
 const STREAM_ID = "main_stream";
+
+// Security middleware configuration
+const security = securityMiddleware({
+  hstsMaxAge: 31536000,
+  hstsIncludeSubdomains: true,
+  cspReportOnly: true,
+  cspReportUri: '/api/csp-report'
+});
 
 // ... existing config from previous steps
 
@@ -33,11 +42,16 @@ const snapshotCache = new RollingSnapshotCache(
 snapshotCache.start();
 
 const server = http.createServer((req, res) => {
+  // Apply security headers to all requests
+  security(req, res);
+
   if (req.url === "/") {
     res.writeHead(200).end("ws-backpressure-server\n");
   } else if (req.url === "/healthz") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify(snapshotCache.stats()));
+  } else if (req.url === "/api/csp-report") {
+    cspReportHandler(req, res);
   } else {
     res.writeHead(404).end("not found");
   }
