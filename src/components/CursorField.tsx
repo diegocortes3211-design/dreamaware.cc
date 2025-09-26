@@ -26,4 +26,50 @@ export default function CursorField() {
       mouse.current.speed = Math.hypot(dx, dy);
       // spawn bursts based on speed
       const count = Math.min(settings.spawn, Math.floor(mouse.current.speed/6));
-      for(let i
+      for(let i = 0; i < count; i++) {
+        orbs.push({
+          x: nx, y: ny,
+          vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8,
+          life: 1.0
+        });
+      }
+    }
+
+    function draw(ts: number) {
+      const dt = Math.min(0.016, (ts - last) / 1000);
+      last = ts;
+      
+      ctx.fillStyle = `hsl(${settings.bgHue}, 20%, 8%)`;
+      ctx.fillRect(0, 0, innerWidth, innerHeight);
+      
+      // Update and draw orbs
+      for(let i = orbs.length - 1; i >= 0; i--) {
+        const o = orbs[i];
+        o.x += o.vx * dt * 60;
+        o.y += o.vy * dt * 60;
+        o.life -= dt * settings.speed;
+        
+        if(o.life <= 0) {
+          orbs.splice(i, 1);
+          continue;
+        }
+        
+        ctx.globalAlpha = o.life;
+        ctx.fillStyle = `hsl(${settings.bgHue + 60}, 80%, 60%)`;
+        ctx.fillRect(o.x - 2, o.y - 2, 4, 4);
+      }
+      
+      ctx.globalAlpha = 1;
+      requestAnimationFrame(draw);
+    }
+
+    addEventListener("pointermove", onMove);
+    requestAnimationFrame(draw);
+    
+    return () => {
+      removeEventListener("pointermove", onMove);
+    };
+  }, [settings]);
+
+  return <canvas ref={ref} style={{position: "fixed", inset: 0, pointerEvents: "none", zIndex: 1}} />;
+}
