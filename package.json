@@ -16,5 +16,12 @@
     "@types/node": "^20.12.7",
     "tsc-watch": "^6.2.0",
     "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "vite": "^7.1.7"
   }
 }

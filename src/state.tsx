@@ -10,6 +10,7 @@ export type Settings = {
   speed: number;          // orb velocity
   trail: number;          // fade factor
   gravity: number;        // pull toward center
+  glow: number;           // shadow blur radius
   audioReactive: boolean; // reserved
 };
 
@@ -21,6 +22,7 @@ const defaults: Settings = {
   speed: 1.2,
   trail: 0.08,
   gravity: 0.03,
+  glow: 8,
   audioReactive: false
 };
 
