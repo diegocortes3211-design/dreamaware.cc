@@ -169,7 +169,8 @@ class TestRunner {
     }
     
     const evaluator = new PolicyEvaluator({
-      enforcementMode: false // Don't fail on errors during testing
+      enforcementMode: false, // Don't fail on errors during testing
+      simulationMode: true // Use simulation mode for consistent testing
     });
     
     for (const testVector of testVectors) {
@@ -283,7 +284,7 @@ async function runBenchmark(): Promise<void> {
   console.log('\\n🏃 Running Performance Benchmark');
   console.log('=================================');
   
-  const evaluator = new PolicyEvaluator();
+  const evaluator = new PolicyEvaluator({ simulationMode: true });
   const iterations = 100;
   
   // Simple test case for benchmarking

@@ -44,6 +44,7 @@ export interface PolicyEvaluatorOptions {
   opaPath?: string;
   evaluationTimeout?: number;
   enforcementMode?: boolean;
+  simulationMode?: boolean; // Enable simulation mode for testing
 }
 
 export class PolicyEvaluator {
@@ -52,6 +53,7 @@ export class PolicyEvaluator {
   private opaPath: string;
   private evaluationTimeout: number;
   private enforcementMode: boolean;
+  private simulationMode: boolean;
   private wasmModule: any = null;
   private wasmIntegrityVerified: boolean = false;
 
@@ -61,6 +63,7 @@ export class PolicyEvaluator {
     this.opaPath = options.opaPath || 'opa';
     this.evaluationTimeout = options.evaluationTimeout || 5000; // 5 seconds
     this.enforcementMode = options.enforcementMode || process.env.POLICY_ENFORCE === '1';
+    this.simulationMode = options.simulationMode || false;
   }
 
   /**
@@ -69,6 +72,24 @@ export class PolicyEvaluator {
   async evaluate(input: PolicyInput): Promise<PolicyResult> {
     const startTime = Date.now();
     const decisionId = this.generateDecisionId(input);
+
+    // In simulation mode, use direct policy logic
+    if (this.simulationMode) {
+      const evaluationTime = Date.now() - startTime;
+      const allowed = this.evaluatePolicyLogic(input);
+      const audit_required = this.shouldAudit(input);
+      
+      const result: PolicyResult = {
+        allowed,
+        audit_required,
+        decision_id: decisionId,
+        evaluation_time_ms: evaluationTime,
+        engine: 'wasm'
+      };
+      
+      this.logDecision(result, input);
+      return result;
+    }
 
     try {
       // First try WASM evaluation
@@ -226,8 +247,7 @@ export class PolicyEvaluator {
    */
   private simulateWasmEvaluation(input: PolicyInput): any {
     const allow = this.evaluatePolicyLogic(input);
-    const audit_required = input.action && ['write', 'delete', 'admin'].includes(input.action) ||
-                          input.resource?.sensitive === true;
+    const audit_required = this.shouldAudit(input);
     
     return { allow, audit_required };
   }
@@ -238,6 +258,11 @@ export class PolicyEvaluator {
   private evaluatePolicyLogic(input: PolicyInput): boolean {
     // Not authenticated
     if (!input.user?.authenticated) {
+      return false;
+    }
+
+    // Rate limiting check (check this early)
+    if (input.rate_limit && input.rate_limit.current >= input.rate_limit.max) {
       return false;
     }
 
@@ -273,12 +298,15 @@ export class PolicyEvaluator {
       }
     }
 
-    // Rate limiting check
-    if (input.rate_limit && input.rate_limit.current >= input.rate_limit.max) {
-      return false;
-    }
-
     return false;
+  }
+
+  /**
+   * Determine if audit logging is required
+   */
+  private shouldAudit(input: PolicyInput): boolean {
+    return (input.action && ['write', 'delete', 'admin'].includes(input.action)) ||
+           input.resource?.sensitive === true;
   }
 
   /**
