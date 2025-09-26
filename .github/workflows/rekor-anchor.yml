@@ -1,0 +1,191 @@
+name: Rekor Ledger Hash Anchoring
+
+on:
+  schedule:
+    # Run hourly at :17 UTC (e.g., 00:17, 01:17, etc.)
+    - cron: '17 * * * *'
+  workflow_dispatch:
+    inputs:
+      hash_limit:
+        description: 'Number of recent hashes to process (default: 50)'
+        required: false
+        default: '50'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  anchor-hashes:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set parameters
+        id: params
+        run: |
+          # Use workflow input or default to 50 for manual dispatch
+          # Use 100 for scheduled runs to catch up on any missed hashes
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            LIMIT="${{ github.event.inputs.hash_limit || '50' }}"
+          else
+            LIMIT="100"
+          fi
+          echo "hash_limit=$LIMIT" >> $GITHUB_OUTPUT
+          echo "Processing up to $LIMIT recent hashes"
+
+      - name: Query recent ledger hashes
+        id: query_hashes
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "ERROR: DATABASE_URL secret is not configured"
+            exit 1
+          fi
+          
+          # Install postgresql client
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          
+          # Create temp file for hashes
+          HASHES_FILE=$(mktemp)
+          echo "hashes_file=$HASHES_FILE" >> $GITHUB_OUTPUT
+          
+          # Query recent hashes from ledger - we'll hash the payload to get SHA256
+          # This assumes the payload contains the data we want to anchor
+          echo "Querying recent ledger entries..."
+          psql "$DATABASE_URL" -t -A -c "
+            SELECT encode(sha256(payload), 'hex') as hash, subject, length(payload) as size
+            FROM ledger.entries 
+            ORDER BY id DESC 
+            LIMIT ${{ steps.params.outputs.hash_limit }}
+          " > "$HASHES_FILE"
+          
+          if [ ! -s "$HASHES_FILE" ]; then
+            echo "No hashes found in ledger"
+            exit 0
+          fi
+          
+          HASH_COUNT=$(wc -l < "$HASHES_FILE")
+          echo "Found $HASH_COUNT hashes to process"
+          echo "hash_count=$HASH_COUNT" >> $GITHUB_OUTPUT
+
+      - name: Setup Rekor CLI
+        run: |
+          # Use Rekor CLI via Docker for consistency and security
+          docker pull gcr.io/projectsigstore/rekor-cli:latest
+          
+          # Create wrapper script
+          cat > /tmp/rekor-cli << 'EOF'
+          #!/bin/bash
+          docker run --rm -i \
+            -v /tmp:/tmp \
+            gcr.io/projectsigstore/rekor-cli:latest \
+            "$@"
+          EOF
+          chmod +x /tmp/rekor-cli
+          
+          # Test rekor-cli
+          /tmp/rekor-cli version
+
+      - name: Anchor hashes to Rekor
+        env:
+          HASHES_FILE: ${{ steps.query_hashes.outputs.hashes_file }}
+          HASH_COUNT: ${{ steps.query_hashes.outputs.hash_count }}
+        run: |
+          if [ "$HASH_COUNT" = "0" ]; then
+            echo "No hashes to process, skipping anchoring"
+            exit 0
+          fi
+          
+          echo "Starting hash anchoring process..."
+          
+          anchored=0
+          skipped=0
+          errors=0
+          
+          # Create summary files
+          SUMMARY_FILE=$(mktemp)
+          ERROR_FILE=$(mktemp)
+          
+          while IFS='|' read -r hash subject size; do
+            if [ -z "$hash" ]; then
+              continue
+            fi
+            
+            echo "Processing hash: $hash (subject: $subject, size: $size bytes)"
+            
+            # Check if hash is already in Rekor
+            if /tmp/rekor-cli search --sha256 "$hash" --format json > /dev/null 2>&1; then
+              echo "  → already anchored: $hash"
+              echo "$hash|$subject|already_anchored" >> "$SUMMARY_FILE"
+              ((skipped++))
+            else
+              echo "  → anchoring: $hash"
+              # Anchor the hash directly using --sha256 flag
+              if /tmp/rekor-cli upload --sha256 "$hash" --type hashedrekord 2>> "$ERROR_FILE"; then
+                echo "  → successfully anchored: $hash"
+                echo "$hash|$subject|anchored" >> "$SUMMARY_FILE"
+                ((anchored++))
+              else
+                echo "  → failed to anchor: $hash"
+                echo "$hash|$subject|error" >> "$SUMMARY_FILE"
+                ((errors++))
+              fi
+            fi
+            
+            # Small delay to avoid overwhelming Rekor
+            sleep 1
+            
+          done < "$HASHES_FILE"
+          
+          echo ""
+          echo "=== ANCHORING SUMMARY ==="
+          echo "Considered: $HASH_COUNT"
+          echo "Anchored: $anchored"
+          echo "Skipped (already present): $skipped"
+          echo "Errors: $errors"
+          echo ""
+          
+          if [ -s "$SUMMARY_FILE" ]; then
+            echo "=== DETAILED RESULTS ==="
+            cat "$SUMMARY_FILE"
+            echo ""
+          fi
+          
+          if [ -s "$ERROR_FILE" ]; then
+            echo "=== ERRORS ==="
+            cat "$ERROR_FILE"
+            echo ""
+          fi
+          
+          # Fail if there were errors
+          if [ "$errors" -gt 0 ]; then
+            echo "Some hashes failed to anchor. Check the logs above."
+            exit 1
+          fi
+          
+          echo "Hash anchoring completed successfully!"
+
+      - name: Verify anchored hashes (sample)
+        if: success()
+        env:
+          HASHES_FILE: ${{ steps.query_hashes.outputs.hashes_file }}
+        run: |
+          echo "Verifying a sample of anchored hashes..."
+          
+          # Verify first 3 hashes as a spot check
+          head -n 3 "$HASHES_FILE" | while IFS='|' read -r hash subject size; do
+            if [ -n "$hash" ]; then
+              echo "Verifying hash: $hash"
+              if /tmp/rekor-cli search --sha256 "$hash" --format json; then
+                echo "  ✓ Successfully verified in Rekor"
+              else
+                echo "  ✗ Verification failed"
+              fi
+              echo ""
+            fi
+          done
