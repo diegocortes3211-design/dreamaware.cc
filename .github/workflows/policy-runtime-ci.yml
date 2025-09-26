@@ -1,0 +1,226 @@
+name: Policy Runtime CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'lib/policy/**'
+      - 'policy/**'
+      - '__tests__/policy-*.spec.ts'
+      - 'tools/policy/**'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'lib/policy/**'
+      - 'policy/**'
+      - '__tests__/policy-*.spec.ts'
+      - 'tools/policy/**'
+
+jobs:
+  policy-tests:
+    name: Policy Runtime Tests
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          
+      - name: Install OPA
+        run: |
+          OPA_VERSION="0.57.0"
+          curl -L -o opa https://openpolicyagent.org/downloads/v${OPA_VERSION}/opa_linux_amd64_static
+          chmod +x opa
+          sudo mv opa /usr/local/bin/
+          opa version
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build TypeScript
+        run: npm run build
+        
+      - name: Build WASM policy bundle
+        run: |
+          npm run policy:build:wasm
+          ls -la policy/fortress/
+          
+      - name: Verify WASM bundle integrity
+        run: |
+          if [ -f policy/fortress/authz.wasm ]; then
+            echo "✅ WASM bundle created successfully"
+            wc -c policy/fortress/authz.wasm
+          else
+            echo "❌ WASM bundle not found"
+            exit 1
+          fi
+          
+          if [ -f policy/fortress/authz.wasm.sha256 ]; then
+            echo "✅ Checksum file created"
+            cat policy/fortress/authz.wasm.sha256
+          else
+            echo "❌ Checksum file not found"
+            exit 1
+          fi
+          
+      - name: Run policy parity tests
+        run: npm run test:policy
+        env:
+          NODE_OPTIONS: '--loader ts-node/esm'
+          
+      - name: Test OPA CLI directly
+        run: |
+          echo '{"input": {"user": {"authenticated": true, "role": "admin"}, "action": "read"}}' | \
+          opa eval -d policy/fortress/authz.rego -i - "data.fortress.authz.allow"
+          
+      - name: Upload WASM artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: policy-wasm-${{ matrix.node-version }}
+          path: |
+            policy/fortress/*.wasm
+            policy/fortress/*.sha256
+          retention-days: 7
+
+  security-scan:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+    needs: policy-tests
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          
+      - name: Install OPA
+        run: |
+          OPA_VERSION="0.57.0"
+          curl -L -o opa https://openpolicyagent.org/downloads/v${OPA_VERSION}/opa_linux_amd64_static
+          chmod +x opa
+          sudo mv opa /usr/local/bin/
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Analyze Rego policies
+        run: |
+          # Check for policy syntax errors
+          opa fmt --diff policy/fortress/authz.rego
+          
+          # Run policy tests if they exist
+          if [ -d "policy/fortress/tests" ]; then
+            opa test policy/fortress/
+          fi
+          
+          # Validate policy structure
+          opa eval -d policy/fortress/authz.rego "data.fortress.authz"
+          
+      - name: Security audit of dependencies
+        run: npm audit --audit-level moderate
+        
+      - name: Check for hardcoded secrets
+        run: |
+          # Basic grep for potential secrets (in a real scenario, use a proper secret scanner)
+          if grep -r -i "password\|secret\|key\|token" lib/ policy/ --include="*.ts" --include="*.rego" | grep -v "// " | grep -v "# "; then
+            echo "⚠️  Potential secrets found in code"
+            exit 1
+          else
+            echo "✅ No obvious secrets found"
+          fi
+
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: policy-tests
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          
+      - name: Install OPA
+        run: |
+          OPA_VERSION="0.57.0"
+          curl -L -o opa https://openpolicyagent.org/downloads/v${OPA_VERSION}/opa_linux_amd64_static
+          chmod +x opa
+          sudo mv opa /usr/local/bin/
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build project
+        run: npm run build
+        
+      - name: Build WASM policy
+        run: npm run policy:build:wasm
+        
+      - name: Test policy evaluation performance
+        run: |
+          node -e "
+          import('./lib/policy/evaluator.js').then(async ({ PolicyEvaluator }) => {
+            const evaluator = new PolicyEvaluator();
+            const start = Date.now();
+            const input = {
+              user: { id: 'user1', authenticated: true, role: 'user' },
+              action: 'read',
+              resource: { id: 'resource1', visibility: 'public' }
+            };
+            
+            for (let i = 0; i < 10; i++) {
+              await evaluator.evaluate(input);
+            }
+            
+            const time = Date.now() - start;
+            console.log(\`Performance test: 10 evaluations in \${time}ms\`);
+            
+            if (time > 5000) {
+              console.error('Performance test failed: too slow');
+              process.exit(1);
+            }
+            
+            console.log('✅ Performance test passed');
+          }).catch(console.error);
+          "
+        env:
+          NODE_OPTIONS: '--loader ts-node/esm'
+          
+      - name: Test enforcement mode
+        run: |
+          POLICY_ENFORCE=1 node -e "
+          import('./lib/policy/evaluator.js').then(async ({ PolicyEvaluator }) => {
+            const evaluator = new PolicyEvaluator();
+            const result = await evaluator.evaluate({
+              user: { authenticated: false },
+              action: 'read'
+            });
+            
+            if (result.allowed) {
+              console.error('Enforcement mode test failed: should deny unauthenticated users');
+              process.exit(1);
+            }
+            
+            console.log('✅ Enforcement mode test passed');
+          }).catch(console.error);
+          "
+        env:
+          NODE_OPTIONS: '--loader ts-node/esm'

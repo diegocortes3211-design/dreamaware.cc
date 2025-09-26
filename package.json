@@ -7,13 +7,17 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "tsc-watch --onSuccess \"node dist/index.js\"",
-    "build": "tsc"
+    "build": "tsc",
+    "policy:build:wasm": "./tools/policy/build-wasm.sh",
+    "test:policy": "ts-node --esm __tests__/policy-parity.spec.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@open-policy-agent/opa-wasm": "^1.8.0",
     "@types/node": "^20.12.7",
+    "ts-node": "^10.9.2",
     "tsc-watch": "^6.2.0",
     "typescript": "^5.4.5"
   }
