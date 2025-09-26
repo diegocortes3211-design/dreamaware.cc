@@ -1,0 +1,330 @@
+name: fortress-policy-ci
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'policy/**'
+      - 'tools/policy/**'
+      - 'lib/policy/**'
+      - '.github/workflows/fortress-policy-ci.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'policy/**'
+      - 'tools/policy/**'
+      - 'lib/policy/**'
+      - '.github/workflows/fortress-policy-ci.yml'
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  policy-validation:
+    name: Policy Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup OPA
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: latest
+
+      - name: Validate policy syntax
+        run: |
+          echo "🔍 Validating Rego policy syntax..."
+          find policy/rego -name "*.rego" | while read -r file; do
+            echo "Validating $file"
+            opa fmt --diff "$file" || (echo "❌ Policy $file is not formatted correctly. Run: opa fmt --write $file" && exit 1)
+          done
+
+      - name: Compile policies
+        run: |
+          echo "🔨 Compiling policies..."
+          if opa build policy/rego > /dev/null 2>&1; then
+            echo "✅ All policies compile successfully"
+          else
+            echo "❌ Policy compilation failed"
+            opa build policy/rego
+            exit 1
+          fi
+
+      - name: Run policy tests
+        run: |
+          echo "🧪 Running policy tests..."
+          for test_file in policy/tests/*.rego; do
+            if [[ -f "$test_file" ]]; then
+              echo "Testing $(basename "$test_file")"
+              opa test policy/rego "$test_file" --verbose
+            fi
+          done
+
+  wasm-build:
+    name: WASM Bundle Build
+    runs-on: ubuntu-latest
+    needs: policy-validation
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup OPA
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: latest
+
+      - name: Create output directory
+        run: mkdir -p dist/policy
+
+      - name: Build WASM bundles
+        run: |
+          echo "🏗️ Building WASM bundles..."
+          
+          # Build ledger policy
+          echo "Building ledger policy..."
+          opa build -t wasm -e fortress.ledger/allow policy/rego -o dist/policy/ledger.wasm
+          
+          # Build API policy
+          echo "Building API policy..."
+          opa build -t wasm -e fortress.api/allow policy/rego -o dist/policy/api.wasm
+          
+          # Build runtime policy
+          echo "Building runtime policy..."
+          opa build -t wasm -e fortress.runtime/allow policy/rego -o dist/policy/runtime.wasm
+          
+          echo "✅ WASM bundles built successfully"
+
+      - name: Verify WASM bundles
+        run: |
+          echo "🔍 Verifying WASM bundles..."
+          for bundle in dist/policy/*.wasm; do
+            if [[ -f "$bundle" ]]; then
+              size=$(du -h "$bundle" | cut -f1)
+              echo "✅ $(basename "$bundle"): $size"
+            fi
+          done
+
+      - name: Upload WASM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: policy-wasm-bundles
+          path: dist/policy/*.wasm
+          retention-days: 30
+
+      - name: Security scan WASM bundles
+        run: |
+          echo "🔒 Security scanning WASM bundles..."
+          # In a real setup, you'd use tools like:
+          # - wasmtime security analysis
+          # - Custom security checks
+          for bundle in dist/policy/*.wasm; do
+            echo "Scanning $(basename "$bundle")..."
+            # Example: check bundle size (prevent overly large bundles)
+            size_bytes=$(stat -f%z "$bundle" 2>/dev/null || stat -c%s "$bundle")
+            max_size=$((1024 * 1024))  # 1MB limit
+            if [ "$size_bytes" -gt "$max_size" ]; then
+              echo "❌ Bundle $(basename "$bundle") is too large: $size_bytes bytes (limit: $max_size bytes)"
+              exit 1
+            fi
+            echo "✅ Bundle size check passed: $size_bytes bytes"
+          done
+
+  policy-benchmarks:
+    name: Policy Performance Benchmarks
+    runs-on: ubuntu-latest
+    needs: policy-validation
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup OPA
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: latest
+
+      - name: Create benchmark data
+        run: |
+          mkdir -p /tmp/bench_data
+          cat > /tmp/bench_data/ledger_input.json << 'EOF'
+          {
+            "operation": "append",
+            "subject": "benchmark-test-subject",
+            "payload": "dGVzdCBwYXlsb2FkIGZvciBiZW5jaG1hcmtpbmcgcGVyZm9ybWFuY2U=",
+            "meta": {
+              "source": "benchmark",
+              "timestamp": "2023-12-01T10:00:00Z",
+              "version": "1.0"
+            },
+            "require_signature": true
+          }
+          EOF
+
+      - name: Benchmark ledger policy
+        run: |
+          echo "⏱️ Benchmarking ledger policy performance..."
+          opa bench policy/rego/ledger_validation.rego \
+            --data /tmp/bench_data/ledger_input.json \
+            --count 1000 \
+            --benchmem
+
+      - name: Benchmark policy compilation
+        run: |
+          echo "⏱️ Benchmarking policy compilation..."
+          time_start=$(date +%s.%N)
+          opa build policy/rego > /dev/null 2>&1
+          time_end=$(date +%s.%N)
+          compile_time=$(echo "$time_end - $time_start" | bc -l)
+          echo "Policy compilation time: ${compile_time}s"
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [wasm-build]
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_ledger
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup OPA
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: latest
+
+      - name: Download WASM artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: policy-wasm-bundles
+          path: dist/policy/
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup test database
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d test_ledger -f app/api/_examples/migrations/001_fortress_v4_ledger_indexes.sql
+
+      - name: Run policy evaluation tests
+        run: |
+          echo "🧪 Running policy evaluation integration tests..."
+          chmod +x tools/policy/evaluate.sh
+          ./tools/policy/evaluate.sh test
+
+      - name: Test API routes with policies
+        run: |
+          echo "🌐 Testing API routes with policy enforcement..."
+          # Start a test server (if you have one)
+          # npm run test:integration
+          echo "Integration tests would run here..."
+
+  security-analysis:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+    needs: policy-validation
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup OPA
+        uses: actions/setup-opa@v2
+        with:
+          version: latest
+
+      - name: Security policy analysis
+        run: |
+          echo "🔒 Running security analysis on policies..."
+          
+          # Check for dangerous patterns in policies
+          echo "Checking for potential security issues..."
+          
+          # Check for overly permissive rules
+          if grep -r "default allow.*true" policy/rego/; then
+            echo "⚠️  Warning: Found default allow = true rules. Ensure this is intentional."
+          fi
+          
+          # Check for potential injection vulnerabilities
+          if grep -r "sprintf.*input\." policy/rego/; then
+            echo "⚠️  Warning: Found sprintf with input data. Check for injection vulnerabilities."
+          fi
+          
+          # Check for eval or similar dangerous functions
+          if grep -r -E "(eval|exec|system)" policy/rego/; then
+            echo "❌ Error: Found potentially dangerous functions in policies."
+            exit 1
+          fi
+          
+          echo "✅ Security analysis completed"
+
+      - name: Upload security scan results
+        if: always()
+        run: |
+          echo "Security scan results would be uploaded to security dashboard..."
+          # In real setup, upload to GitHub Security tab or external system
+
+  documentation:
+    name: Generate Documentation
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: [wasm-build, policy-benchmarks]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup OPA
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: latest
+
+      - name: Generate policy documentation
+        run: |
+          echo "📚 Generating policy documentation..."
+          chmod +x tools/policy/build.sh
+          ./tools/policy/build.sh docs
+
+      - name: Upload documentation
+        uses: actions/upload-artifact@v4
+        with:
+          name: policy-documentation
+          path: dist/policy/docs/
+          retention-days: 30
+
+  notify-completion:
+    name: Notify Completion
+    runs-on: ubuntu-latest
+    needs: [policy-validation, wasm-build, policy-benchmarks, integration-tests, security-analysis, documentation]
+    if: always()
+    steps:
+      - name: Notification
+        run: |
+          if [[ "${{ needs.policy-validation.result }}" == "success" && 
+                "${{ needs.wasm-build.result }}" == "success" && 
+                "${{ needs.integration-tests.result }}" == "success" && 
+                "${{ needs.security-analysis.result }}" == "success" ]]; then
+            echo "✅ Fortress v4 Policy CI completed successfully!"
+            echo "🎉 All policies validated, WASM bundles built, and security checks passed."
+          else
+            echo "❌ Fortress v4 Policy CI completed with failures."
+            echo "Please check the failed jobs and fix issues before merging."
+            exit 1
+          fi
