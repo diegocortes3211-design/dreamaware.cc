@@ -1,0 +1,39 @@
+# Security Headers for Static Hosting
+# This file configures security headers for various hosting providers
+
+# Netlify _headers file format
+/*
+  # HSTS - HTTP Strict Transport Security
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  
+  # Prevent MIME type sniffing
+  X-Content-Type-Options: nosniff
+  
+  # Prevent clickjacking
+  X-Frame-Options: DENY
+  
+  # XSS Protection (legacy browsers)
+  X-XSS-Protection: 1; mode=block
+  
+  # Referrer Policy
+  Referrer-Policy: strict-origin-when-cross-origin
+  
+  # Permissions Policy
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), magnetometer=(), gyroscope=(), accelerometer=(), ambient-light-sensor=()
+  
+  # Content Security Policy (Report-Only)
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss:; font-src 'self'; object-src 'none'; media-src 'self'; frame-src 'none'; worker-src 'self'; child-src 'none'; base-uri 'self'; form-action 'self'; report-uri /api/csp-report
+  
+  # Cache Control for security-sensitive resources
+  Cache-Control: no-cache, no-store, must-revalidate
+  
+  # Remove server information
+  Server: DreamAware/1.0
+
+# API endpoints (if any)
+/api/*
+  # Additional headers for API routes
+  Access-Control-Allow-Origin: https://dreamaware.cc
+  Access-Control-Allow-Methods: GET, POST, OPTIONS
+  Access-Control-Allow-Headers: Content-Type, Authorization
+  Access-Control-Max-Age: 86400
