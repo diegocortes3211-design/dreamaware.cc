@@ -26,4 +26,73 @@ export default function CursorField() {
       mouse.current.speed = Math.hypot(dx, dy);
       // spawn bursts based on speed
       const count = Math.min(settings.spawn, Math.floor(mouse.current.speed/6));
-      for(let i
+      for(let i = 0; i < count; i++){
+        orbs.push({
+          x: nx, y: ny,
+          vx: (Math.random() - 0.5) * 8,
+          vy: (Math.random() - 0.5) * 8,
+          life: 1.0
+        });
+      }
+    }
+
+    function draw() {
+      const now = performance.now();
+      const dt = Math.min(0.032, (now - last) / 1000);
+      last = now;
+
+      // Clear canvas
+      ctx.clearRect(0, 0, w / devicePixelRatio, h / devicePixelRatio);
+
+      // Update and draw orbs
+      for (let i = orbs.length - 1; i >= 0; i--) {
+        const orb = orbs[i];
+        orb.x += orb.vx * dt * 60;
+        orb.y += orb.vy * dt * 60;
+        orb.life -= dt * settings.trail * 60;
+        
+        // Apply gravity toward center
+        const cx = w / devicePixelRatio / 2;
+        const cy = h / devicePixelRatio / 2;
+        const dx = cx - orb.x;
+        const dy = cy - orb.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 0) {
+          orb.vx += dx / dist * settings.gravity * dt * 60;
+          orb.vy += dy / dist * settings.gravity * dt * 60;
+        }
+
+        if (orb.life <= 0) {
+          orbs.splice(i, 1);
+          continue;
+        }
+
+        // Draw orb
+        ctx.save();
+        ctx.globalAlpha = orb.life;
+        ctx.fillStyle = settings.orbColor;
+        ctx.beginPath();
+        ctx.arc(orb.x, orb.y, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      requestAnimationFrame(draw);
+    }
+
+    addEventListener("pointermove", onMove);
+    addEventListener("resize", () => {
+      w = c.width = innerWidth * devicePixelRatio;
+      h = c.height = innerHeight * devicePixelRatio;
+      ctx.scale(devicePixelRatio, devicePixelRatio);
+    });
+
+    draw();
+
+    return () => {
+      removeEventListener("pointermove", onMove);
+    };
+  }, [settings]);
+
+  return <canvas ref={ref} style={{ position: "fixed", inset: 0, pointerEvents: "none" }} />;
+}
