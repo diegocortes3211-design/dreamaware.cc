@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "tsc-watch --onSuccess \"node dist/index.js\"",
-    "build": "tsc"
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "npx tsc && npx vite build",
+    "build:server": "npx tsc -p server.tsconfig.json"
   },
   "keywords": [],
   "author": "",
