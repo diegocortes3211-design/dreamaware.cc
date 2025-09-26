@@ -8,13 +8,15 @@
     "start": "node dist/index.js",
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "markdownlint-cli2 \"**/*.md\" \"#node_modules\" \"#dist\""
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "@types/node": "^20.12.7",
+    "markdownlint-cli2": "^0.18.1",
     "tsc-watch": "^6.2.0",
     "typescript": "^5.4.5",
     "vite": "^7.1.7"

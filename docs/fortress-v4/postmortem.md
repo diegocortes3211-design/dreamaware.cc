@@ -14,7 +14,7 @@ Voidblock v1 was designed as a distributed ledger system but suffered from funda
 
 **Issue**: Voidblock v1 relied on centralized orchestration components that created critical bottlenecks.
 
-**Root Cause**: 
+**Root Cause**:
 - Master-slave architecture with no failover mechanisms
 - Centralized state management without distributed consensus
 - Single database instances for critical operations

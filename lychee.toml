@@ -1,0 +1,131 @@
+# Lychee Link Checker Configuration
+# Documentation: https://github.com/lycheeverse/lychee
+
+# Base configuration for link checking
+base = "."
+
+# Maximum number of concurrent network requests
+max_concurrency = 8
+
+# Request timeout in seconds  
+timeout = 30
+
+# Maximum number of redirects to follow
+max_redirects = 5
+
+# User agent string
+user_agent = "lychee/fortress-v4-docs"
+
+# Accept invalid certificates (use with caution in production)
+insecure = false
+
+# Only check links matching these schemes
+scheme = ["https", "http", "file"]
+
+# Exclude these status codes from being treated as errors
+accept = [200, 204, 206, 301, 302, 307, 308, 403, 429]
+
+# Retry configuration
+retry_wait_time = 2
+max_retries = 3
+
+# Include these glob patterns
+include = [
+  "**/*.md",
+  "**/*.html"
+]
+
+# Exclude these glob patterns  
+exclude = [
+  "./node_modules/**/*",
+  "./dist/**/*", 
+  "./build/**/*",
+  "./target/**/*",
+  "./vendor/**/*"
+]
+
+# Exclude these URL patterns
+exclude_link_local = true
+exclude_mail = false
+
+# Regular expressions for URLs to exclude
+exclude_path = [
+  # Localhost and private networks
+  "^https?://localhost",
+  "^https?://127\\.0\\.0\\.1",
+  "^https?://0\\.0\\.0\\.0",
+  "^https?://10\\.",
+  "^https?://172\\.(1[6-9]|2[0-9]|3[01])\\.",
+  "^https?://192\\.168\\.",
+  
+  # Common placeholder domains
+  "^https?://example\\.(com|org|net)",
+  "^https?://.*\\.example\\.(com|org|net)",
+  
+  # GitHub private repositories (may require authentication)
+  "^https?://github\\.com/.*/pull/",
+  "^https?://github\\.com/.*/issues/",
+  
+  # Dynamic URLs that change frequently
+  "^https?://.*\\?.*timestamp=",
+  "^https?://.*\\?.*nonce=",
+  
+  # Social media share links (may be blocked by rate limiting)
+  "^https?://twitter\\.com/intent/",
+  "^https?://www\\.facebook\\.com/sharer/",
+  "^https?://www\\.linkedin\\.com/sharing/",
+  
+  # Authentication required URLs
+  "^https?://.*admin",
+  "^https?://.*login",
+  
+  # Certificate and key files (should not be accessible)
+  "\\.(key|pem|p12|pfx|jks|keystore)$",
+  
+  # Temporary or development URLs
+  "^https?://.*\\.(dev|test|staging|local)"
+]
+
+# Headers to send with requests
+headers = [
+  "Accept=text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+]
+
+# Cache configuration
+cache = true
+
+# Output format: compact, detailed, json
+output = "detailed"
+
+# Verbose output
+verbose = false
+
+# Include fragments in checking (anchors)
+include_fragments = true
+
+# Base URL for relative links
+base_url = ""
+
+# Skip checking for these file types
+exclude_file = []
+
+# GitHub token (optional, set via environment variable)
+# github_token = ""
+
+# Custom request method
+method = "get"
+
+# Skip private network addresses
+skip_missing = false
+
+# Include link sources in output
+include_sources = true
+
+# Maximum response size to read (in bytes)
+max_response_size = 2097152  # 2MB
+
+# Glob patterns for files to check
+glob_ignore_case = false
+
+# Mode: files, links
+mode = "files"
