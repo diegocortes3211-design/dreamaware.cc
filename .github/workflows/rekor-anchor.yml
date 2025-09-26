@@ -126,9 +126,11 @@ jobs:
               
               # Capture inclusion proof if requested
               if [[ "$CAPTURE_PROOFS" == "true" ]]; then
-                # Extract UUID from rekor output
-                uuid=$(echo "$rekor_output" | grep -oE 'Created entry at index [0-9]+, available at: https://rekor\.sigstore\.dev/api/v1/log/entries/[a-f0-9]+' | grep -oE '[a-f0-9]+$')
-                if [[ -n "$uuid" ]]; then
+                # Extract UUID from rekor output - try multiple patterns for robustness
+                uuid=$(echo "$rekor_output" | grep -oE 'Created entry at index [0-9]+, available at: https://rekor\.sigstore\.dev/api/v1/log/entries/[a-f0-9]+' | grep -oE '[a-f0-9]+$' || \
+                       echo "$rekor_output" | grep -oE 'Entry UUID: [a-f0-9]+' | cut -d' ' -f3 || \
+                       echo "$rekor_output" | grep -oE '[a-f0-9]{64,}')
+                if [[ -n "$uuid" && ${#uuid} -ge 64 ]]; then
                   echo "  📋 Capturing inclusion proof for UUID: $uuid"
                   # Get the entry JSON
                   if entry_json=$(rekor-cli get --uuid "$uuid" --format json 2>&1); then
@@ -136,7 +138,11 @@ jobs:
                     echo "  ✅ Inclusion proof saved: entries/${uuid}.json"
                   else
                     echo "  ⚠️  Failed to capture inclusion proof for UUID: $uuid"
+                    echo "  Debug - Rekor output was: $rekor_output"
                   fi
+                else
+                  echo "  ⚠️  Could not extract valid UUID from Rekor output"
+                  echo "  Debug - Rekor output was: $rekor_output"
                 fi
               fi
             else

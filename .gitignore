@@ -6,3 +6,4 @@ dist
 hashes/
 entries/
 test_hashes/
+test_output/
