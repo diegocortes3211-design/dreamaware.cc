@@ -1,0 +1,34 @@
+name: Multi Model Smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 7 * * *"
+  pull_request:
+    types: [labeled]
+
+jobs:
+  run:
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'model-smoke')
+    runs-on: ubuntu-latest
+    env:
+      # Secrets are optional. Jobs will skip a provider when key is missing.
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Install deps
+        run: pip install requests pyyaml
+      - name: Probe models
+        run: |
+          set -e
+          python scripts/multi_bench.py --prompt "Summarize this repo purpose in one paragraph. Zero slop." --providers "openai:gpt-4o-mini,anthropic:claude-3-5-haiku,gemini:gemini-2.0-flash,grok:grok-2"
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: multimodel-bench
+          path: logs/multimodel/*.json
