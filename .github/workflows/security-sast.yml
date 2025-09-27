@@ -1,0 +1,21 @@
+name: Security SAST
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+jobs:
+  bandit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install bandit
+        run: pipx install bandit
+      - name: Run bandit
+        run: bandit -r -q -ll services packages
+  semgrep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: returntocorp/semgrep-action@v1
+        with:
+          config: p/ci

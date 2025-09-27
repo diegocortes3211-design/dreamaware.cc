@@ -1,0 +1,12 @@
+# Core application dependencies
+pydantic
+requests
+pyyaml
+
+# Visualization dependencies
+vl-convert-python
+graphviz
+
+# Testing dependencies
+pytest
+pytest-cov

@@ -1,0 +1,15 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-merge-conflict
+      - id: detect-private-key
+  - repo: local
+    hooks:
+      - id: strip-slop
+        name: strip-slop
+        entry: python scripts/strip_slop.py
+        language: system
+        files: "\\.(md|mdx|txt|py)$"
