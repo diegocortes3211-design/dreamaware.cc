@@ -1,0 +1,123 @@
+issues:
+  - title: "CODE_AGENT: Void Chain Receipt Logger"
+    labels: ["autopilot","CODE_AGENT","voidchain","receipts"]
+    body: |
+      Goal
+      Add Merkle-style receipt logging stubs (TS/Go/Python), attach to CI artifacts.
+
+      Tasks
+      - [ ] Create `voidchain/verify.ts` with `logReceipt`
+      - [ ] Add Go shim `services/voidchain/verify.go`
+      - [ ] Add Python shim `services/voidchain/verify.py`
+      - [ ] CI: attach `receipt.json` on each PR
+
+      *** Add File: voidchain/verify.ts
+      ```ts
+      import { createHash } from "crypto";
+      export function logReceipt(data: any): string {
+        const payload = JSON.stringify(data);
+        return createHash("sha256").update(payload).digest("hex");
+      }
+      ```
+
+      *** Add File: services/voidchain/verify.py
+      ```python
+      import json, hashlib, sys
+      def log_receipt(obj) -> str:
+          payload = json.dumps(obj, sort_keys=True).encode()
+          return hashlib.sha256(payload).hexdigest()
+      if __name__ == "__main__":
+          data = json.loads(sys.stdin.read() or "{}")
+          print(log_receipt(data))
+      ```
+
+      *** Add File: services/voidchain/verify.go
+      ```go
+      package voidchain
+      import (
+        "crypto/sha256"
+        "encoding/hex"
+        "encoding/json"
+      )
+      func LogReceipt(v any) string {
+        b, _ := json.Marshal(v)
+        sum := sha256.Sum256(b)
+        return hex.EncodeToString(sum[:])
+      }
+      ```
+
+  - title: "DOCS_AGENT: Ethics & Human Factors Playbook"
+    labels: ["autopilot","DOCS_AGENT","docs","ethics"]
+    body: |
+      Goal
+      Establish IC-aligned ethics and human-factors docs with actionable drills.
+
+      Tasks
+      - [ ] Create `docs/ethics.md` (IC principles, bias tests, privacy)
+      - [ ] Add `docs/humanfactorsplaybook.md` (drills, meditations, SERE-tabletops)
+      - [ ] Link from README
+
+      *** Add File: docs/ethics.md
+      ```markdown
+      # Ethics & Transparency (IC-aligned)
+      - Respect the law & integrity
+      - Transparent & accountable (XAI + audit trails)
+      - Objective & equitable (bias testing playbook)
+      - Human-centered (HITL for high-risk changes)
+      - Secure & resilient (DevSecOps + adversarial testing)
+      - Informed by science (NIST-aligned)
+      ```
+
+      *** Add File: docs/humanfactorsplaybook.md
+      ```markdown
+      # Human Factors Playbook
+      - Compartmentalization drills
+      - Mindfulness: 3x3 breath protocol
+      - SERE-style tabletop: incident rehearsal
+      - Peer feedback cadence & psychological safety checklist
+      ```
+
+  - title: "SCORECARD: Xikizpedia Weights & Thresholds"
+    labels: ["autopilot","xikizpedia","scorecard","config"]
+    body: |
+      Goal
+      Add initial weights/thresholds for text/video/audio analyzers.
+
+      Tasks
+      - [ ] Create `config/xikizpedia.yaml`
+      - [ ] Wire into score aggregation if present
+      - [ ] Add CI smoke read of config
+
+      *** Add File: config/xikizpedia.yaml
+      ```yaml
+      weights:
+        slop: 0.25
+        trauma: 0.25
+        body: 0.25
+        pause: 0.25
+      slop_thresholds:
+        emoji_max: 8
+        emdash_max: 12
+        endash_max: 12
+      pause:
+        normalize_divisor: 1.0
+      ```
+
+  - title: "SOCRATIC_AGENT: Slop Rules & Questions"
+    labels: ["autopilot","Socratic","scorecard"]
+    body: |
+      Goal
+      Define rule set to drive Socratic questions and scoring bands.
+
+      Tasks
+      - [ ] Add `services/scorecard/slop_rules.yaml` with bands
+      - [ ] Ensure SocraticAgent loads rules if present
+
+      *** Add File: services/scorecard/slop_rules.yaml
+      ```yaml
+      bands:
+        emoji:
+          low:    { max: 3,   note: "natural" }
+          medium: { max: 8,   note: "stylized" }
+          high:   { max: 999, note: "likely AI-stylized" }
+        dash:

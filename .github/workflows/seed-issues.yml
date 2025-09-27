@@ -1,0 +1,29 @@
+name: Seed Issues (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      only_titles:
+        description: "Comma-separated titles to seed (optional)"
+        required: false
+        default: ""
+      dry_run:
+        description: "Print plan without creating"
+        required: false
+        default: "false"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Seed issues
+        id: seed
