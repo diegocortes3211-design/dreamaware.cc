@@ -1,3 +1,8 @@
-node_modules
-.next
-out
+# Next.js
+.next/
+node_modules/
+out/
+.DS_Store
+npm-debug.log*
+yarn-error.log
+package-lock.json
