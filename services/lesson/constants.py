@@ -1,0 +1,1 @@
+DEFAULT_LESSON_PATTERN = ["read", "check", "explain", "check", "reflect"]
