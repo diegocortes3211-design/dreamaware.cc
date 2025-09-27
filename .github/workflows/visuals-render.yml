@@ -1,0 +1,35 @@
+name: Visuals Render
+
+on:
+  push:
+    paths:
+      - "packages/visualization/specs/**"
+      - "packages/visualization/renderers/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Install render deps
+        run: |
+          pip install --quiet vl-convert-python graphviz
+          sudo apt-get update
+          sudo apt-get install -y graphviz
+      - name: Render all visuals
+        run: python packages/visualization/renderers/render_all.py
+      - name: Commit and push assets
+        run: |
+          git config user.name github-actions
+          git config user.email actions@github.com
+          git add site/static/assets/visuals/*.svg
+          git commit -m "chore(visuals): update rendered assets" || echo "no changes"
+          git push
