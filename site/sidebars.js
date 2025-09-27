@@ -18,6 +18,7 @@ module.exports = {
     'xikizpedia',
     'forum',
     'security',
+    'ingest-allowlist',
     'roadmap',
     'visualization-guide',
   ],
