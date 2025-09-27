@@ -1,0 +1,24 @@
+name: Socratic Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  socratic_check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run Socratic Agent
+        env:
+          GITHUB_EVENT_NUMBER: ${{ github.event.number }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python services/agent/socratic_agent.py
