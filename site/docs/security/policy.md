@@ -1,5 +1,5 @@
 ---
-id: security
+id: policy
 title: Security Policy
 ---
 

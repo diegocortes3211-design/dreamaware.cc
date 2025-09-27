@@ -1,25 +1,25 @@
 /**
- * Creating a sidebar enables you to:
- - create an ordered group of docs
- - render a sidebar for each doc of that group
- - provide next/previous navigation
-
- The sidebars can be generated from the filesystem, or explicitly defined here.
-
- Create as many sidebars as you want.
+ * Docusaurus sidebar configuration.
  */
 module.exports = {
   tutorialSidebar: [
     {
-      type: 'doc',
-      id: 'index'
+      type: 'category',
+      label: 'System Design',
+      items: ['intro'],
     },
-    'ai-futures',
-    'xikizpedia',
-    'forum',
-    'security',
-    'ingest-allowlist',
-    'roadmap',
-    'visualization-guide',
+    {
+      type: 'category',
+      label: 'Operations',
+      items: [
+          'ops/SECRETS',
+          'ops/SSRF',
+      ],
+    },
+    {
+        type: 'category',
+        label: 'Security',
+        items: ['security/policy'],
+    }
   ],
 };
