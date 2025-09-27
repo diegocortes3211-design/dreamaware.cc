@@ -1,0 +1,10 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "description": "Histogram example for distribution tasks.",
+  "data": { "values": [{"x":1},{"x":2},{"x":2},{"x":3},{"x":4},{"x":4},{"x":4},{"x":5}] },
+  "mark": "bar",
+  "encoding": {
+    "x": { "field": "x", "bin": true, "type": "quantitative" },
+    "y": { "aggregate": "count", "type": "quantitative" }
+  }
+}

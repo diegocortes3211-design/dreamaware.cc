@@ -1,0 +1,10 @@
+digraph TreemapNote {
+  rankdir=LR;
+  node [shape=box, style=filled, color=lightgrey];
+  A -> B;
+  A -> C;
+  B -> D;
+  B -> E;
+  C -> F;
+  C -> G;
+}

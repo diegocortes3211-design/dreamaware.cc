@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<coverage line-rate="0" branch-rate="0" version="6.4.0" timestamp="1628123456">
+	<sources>
+		<source>/app</source>
+	</sources>
+	<packages>
+	</packages>
+</coverage>
