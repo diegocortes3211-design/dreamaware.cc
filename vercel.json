@@ -1,18 +1,5 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "builds": [
-    {
-      "src": "site/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "build"
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/site/$1"
-    }
-  ]
+  "buildCommand": "cd site && npm install && npm run build",
+  "outputDirectory": "site/build",
+  "framework": "docusaurus"
 }

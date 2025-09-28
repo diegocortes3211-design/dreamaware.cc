@@ -20,4 +20,4 @@ jobs:
       - name: Install pytest
         run: pip install pytest
       - name: Run tests
-        run: pytest -q tests/test_agentics_core.py
+        run: PYTHONPATH=$(pwd) pytest -q tests/test_agentics_core.py
