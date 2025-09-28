@@ -1,8 +1,7 @@
 {
-  "builds": [
-    {
-      "src": "site/package.json",
-      "use": "@vercel/static-build"
-    }
-  ]
+  "framework": "docusaurus",
+  "rootDirectory": "site",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
+  "outputDirectory": "build"
 }
