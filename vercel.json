@@ -1,0 +1,7 @@
+{
+  "framework": "docusaurus",
+  "rootDirectory": "site",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
+  "outputDirectory": "build"
+}
