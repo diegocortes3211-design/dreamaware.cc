@@ -1,0 +1,4 @@
+{
+  "buildCommand": "npm run build --prefix site",
+  "outputDirectory": "site/build"
+}
