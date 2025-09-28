@@ -1,0 +1,5 @@
+model_name: "" # set to a HF model id to use transformers, else EchoModel
+epochs: 1
+raw_dir: data/raw
+jsonl_path: data/processed/train.jsonl
+artifacts_dir: artifacts/model

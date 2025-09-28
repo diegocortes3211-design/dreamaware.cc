@@ -1,0 +1,33 @@
+name: Model Train - smoke
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "packages/modeling/**"
+      - "scripts/train_model.py"
+      - "configs/training.yaml"
+      - "data/raw/**"
+permissions:
+  contents: read
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Create sample corpus if empty
+        run: |
+          mkdir -p data/raw
+          echo "This is sample corpus text for smoke testing only." > data/raw/sample.txt
+      - name: Train
+        run: |
+          python scripts/train_model.py --epochs 1
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-artifacts
+          path: artifacts/model
