@@ -1,4 +1,8 @@
 {
-  "buildCommand": "npm run build --prefix site",
-  "outputDirectory": "site/build"
+  "builds": [
+    {
+      "src": "site/package.json",
+      "use": "@vercel/static-build"
+    }
+  ]
 }
