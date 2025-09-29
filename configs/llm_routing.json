@@ -1,0 +1,22 @@
+{
+  "providers": [
+    "openai",
+    "anthropic",
+    "xai"
+  ],
+  "task_routing": {
+    "code_refactor": "anthropic",
+    "security_review": "anthropic",
+    "documentation_writeup": "openai",
+    "bug_analysis": "anthropic",
+    "mega_context_summarize": "xai",
+    "mega_rag_qa": "xai",
+    "vision_qa": "xai",
+    "agent_tooluse": "xai"
+  },
+  "model_map": {
+    "openai": "gpt-4-turbo",
+    "xai": "grok-default",
+    "anthropic": "claude-sonnet-4-5"
+  }
+}

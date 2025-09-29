@@ -1,0 +1,8 @@
+xai:
+  max_calls_per_minute: 30
+  max_tool_calls_per_turn: 4
+  default_temperature: 0.3
+  # set by ops; used only for dashboards/alerts
+  price_hints:
+    input_per_mtok: ${GROK_PRICE_INPUT_PER_MTOK}
+    output_per_mtok: ${GROK_PRICE_OUTPUT_PER_MTOK}
