@@ -1,0 +1,16 @@
+# k8s/security/authorization-policy.yaml
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: video-gen-authz
+  namespace: dreamaware-staging
+spec:
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/dreamaware-staging/sa/video-gen-service"]
+    to:
+    - operation:
+        methods: ["POST", "GET"]
+        paths: ["/api/videogen/*"]

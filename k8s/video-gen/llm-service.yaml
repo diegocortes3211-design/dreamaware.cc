@@ -1,0 +1,64 @@
+# k8s/video-gen/llm-service.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-service
+  namespace: dreamaware-staging
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: llm-service
+  template:
+    metadata:
+      labels:
+        app: llm-service
+    spec:
+      serviceAccountName: video-gen-service
+      containers:
+      - name: llm
+        image: dreamaware/llm-service:v1.0.0
+        ports:
+        - containerPort: 8081
+        env:
+        - name: VAULT_ADDR
+          value: "http://vault.vault.svc.cluster.local:8200"
+        - name: COCKROACH_URL
+          valueFrom:
+            secretKeyRef:
+              name: cockroach-credentials
+              key: url
+        - name: SERVICE_NAME
+          value: "llm-service"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65534
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+        livenessProbe:
+          httpGet: { path: /health, port: 8081 }
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet: { path: /ready, port: 8081 }
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llm-service
+  namespace: dreamaware-staging
+spec:
+  selector:
+    app: llm-service
+  ports:
+  - port: 8081
+    targetPort: 8081

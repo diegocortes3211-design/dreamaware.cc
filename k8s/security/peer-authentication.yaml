@@ -1,0 +1,9 @@
+# k8s/security/peer-authentication.yaml
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: dreamaware-strict
+  namespace: dreamaware-staging
+spec:
+  mtls:
+    mode: STRICT
