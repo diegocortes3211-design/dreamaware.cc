@@ -1,0 +1,23 @@
+name: Config Validation
+
+on:
+  push:
+    paths:
+      - 'configs/syzygy_matrix.yaml'
+      - 'configs/syzygy_matrix.schema.json'
+  pull_request:
+    paths:
+      - 'configs/syzygy_matrix.yaml'
+      - 'configs/syzygy_matrix.schema.json'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Using a dedicated action for robust validation of YAML against JSON Schema
+      - name: Validate Syzygy Matrix YAML against JSON Schema
+        uses: instrumenta/kubernetes-json-schema-action@v1
+        with:
+          files: configs/syzygy_matrix.yaml
+          schema: configs/syzygy_matrix.schema.json
