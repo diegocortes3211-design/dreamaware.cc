@@ -21,8 +21,8 @@ class Lesson(BaseModel):
 class StepPayload(BaseModel):
     """The detailed content of a lesson step."""
     question: str
-    choices: List[str]
-    answer: int
+    choices: Optional[List[str]] = None
+    answer: Optional[int] = None
     context: str
     sources: List[str]
 

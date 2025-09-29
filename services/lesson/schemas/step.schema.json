@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Step",
+  "description": "Represents a single step within a lesson.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for the step."
+    },
+    "lesson_id": {
+      "type": "string",
+      "description": "The ID of the lesson this step belongs to."
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["check", "explain", "spot", "read", "reflect"],
+      "description": "The type of interaction for this step."
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "question": {
+          "type": "string"
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "answer": {
+          "type": "integer"
+        },
+        "context": {
+          "type": "string"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["question", "context", "sources"]
+    }
+  },
+  "required": ["id", "lesson_id", "kind", "payload"]
+}
