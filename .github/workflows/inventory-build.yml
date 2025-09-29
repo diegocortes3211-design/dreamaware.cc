@@ -1,0 +1,34 @@
+name: Build AI Inventory
+on:
+  push:
+    branches: [main]
+jobs:
+  build-inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate Inventory
+        run: |
+          python3 - <<'py'
+import os, json, subprocess, time
+items=[]
+for base in ["engine","simulation","workshop","adversarial","services","physics-engine","neuroanalysis","spherefold"]:
+    if os.path.isdir(base):
+        for path,_,files in os.walk(base):
+            for f in files:
+                if f.endswith((".py",".ts",".go",".rs",".yaml",".yml",".json",".toml",".hcl",".tsx",".js",".md")):
+                    p=os.path.join(path,f)
+                    h=subprocess.check_output(["sha256sum",p]).decode().split()[0]
+                    items.append({"path":p,"sha256":h})
+os.makedirs("docs/inventory", exist_ok=True)
+with open("docs/inventory/ai-systems.json","w") as fp:
+    json.dump({"generated_at":time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "items":items}, fp, indent=2)
+py
+      - name: Commit inventory
+        run: |
+          git config user.name "inventory-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/inventory/ai-systems.json
+          git commit -m "chore(inventory): update ai-systems.json [skip ci]" || true
+          git pull --rebase origin main || true
+          git push

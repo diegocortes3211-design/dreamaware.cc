@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RiskAssessment",
+  "type": "object",
+  "required": ["use_case","impact","controls","owner","signoff_hash"],
+  "properties": {
+    "use_case": { "type": "string" },
+    "impact":   { "type": "string", "enum": ["low","medium","high","critical"] },
+    "controls": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["bias","explainability","rollback","redteam","privacy","safety_override"]
+      },
+      "minItems": 1
+    },
+    "owner":        { "type": "string" },
+    "signoff_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "notes":        { "type": "string" }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OversightApproval",
+  "type": "object",
+  "required": ["approver","approver_role","decision","root_hash","timestamp"],
+  "properties": {
+    "approver":      { "type": "string" },
+    "approver_role": { "type": "string", "enum": ["CAIO","CISO"] },
+    "decision":      { "type": "string", "enum": ["approve","reject","conditional_approve"] },
+    "root_hash":     { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "timestamp":     { "type": "string", "format": "date-time" },
+    "conditions":    { "type": "array", "items": { "type": "string" } },
+    "notes":         { "type": "string" }
+  },
+  "additionalProperties": false
+}
