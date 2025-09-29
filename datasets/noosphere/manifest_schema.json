@@ -1,0 +1,7 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Noosphere Ingestion Manifest",
+  "description": "A manifest describing a snapshot of the Noosphere dataset, its sources, and the normalization steps applied to it.",
+  "type": "object",
+  "properties": {}
+}
