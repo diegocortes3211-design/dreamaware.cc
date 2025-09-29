@@ -17,6 +17,7 @@ class SelfModifier:
         score = evaluation.get("score", {})
         safety = float(score.get("safety", 0.0))
         semgrep_findings = int(evaluation.get("semgrep_findings", 0))
+        affected_files = int(evaluation.get("affected_files_in_attack_paths", 0))
 
         if safety < 0.9:
             props.append(
@@ -33,6 +34,15 @@ class SelfModifier:
                     "title": "Address static analysis findings",
                     "kind": "code",
                     "summary": "Review Semgrep results and patch flagged files",
+                    "impact": "safety",
+                }
+            )
+        if affected_files > 0:
+            props.append(
+                {
+                    "title": "Mitigate predicted attack paths",
+                    "kind": "refactor",
+                    "summary": f"{affected_files} files are in predicted attack paths. Consider refactoring dependencies to break these chains.",
                     "impact": "safety",
                 }
             )
