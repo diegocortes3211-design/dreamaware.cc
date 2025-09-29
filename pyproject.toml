@@ -14,12 +14,18 @@ dependencies = [
     "pydantic",
     "GitPython",
     "jwcrypto",
+    "psycopg[binary]",
 ]
 
 [project.optional-dependencies]
 api = [
     "fastapi",
     "uvicorn[standard]",
+]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "aiohttp",
 ]
 
 [tool.setuptools.packages.find]
