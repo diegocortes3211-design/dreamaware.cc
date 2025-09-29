@@ -9,6 +9,7 @@ import os
 from .executive import Executive
 from .evaluator import Evaluator
 from .self_modify import SelfModifier
+from .maintenance import MaintenanceAgent
 
 
 def run_once(objective: str) -> Dict[str, Any]:
@@ -16,27 +17,35 @@ def run_once(objective: str) -> Dict[str, Any]:
     logs.mkdir(parents=True, exist_ok=True)
 
     execu = Executive()
-    evalr = Evaluator()
     mod = SelfModifier()
 
-    plan = execu.plan(objective)
-    exec_out = execu.run(plan)
-    evaluation = evalr.evaluate(exec_out)
-    proposals = mod.propose(evaluation)
-    proposal_path = mod.persist(proposals, logs)
+    if "maintenance" in objective.lower():
+        # Autonomous maintenance flow
+        agent = MaintenanceAgent(execu, mod)
+        report = agent.run_once()
+        report["objective"] = objective
+        report["time"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    else:
+        # Original human-in-the-loop proposal flow
+        evalr = Evaluator()
+        plan = execu.plan(objective)
+        exec_out = execu.run(plan)
+        evaluation = evalr.evaluate(exec_out)
+        proposals = mod.propose(evaluation)
+        proposal_path = mod.persist(proposals, logs)
+        report = {
+            "objective": objective,
+            "time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "executive": exec_out,
+            "evaluation": evaluation,
+            "proposals_file": str(proposal_path),
+        }
 
-    report = {
-        "objective": objective,
-        "time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "executive": exec_out,
-        "evaluation": evaluation,
-        "proposals_file": str(proposal_path),
-    }
     (logs / "last_report.json").write_text(json.dumps(report, indent=2))
     return report
 
 
 if __name__ == "__main__":
-    obj = os.environ.get("AGENTICS_OBJECTIVE", "harden repository and raise safety score")
+    obj = os.environ.get("AGENTICS_OBJECTIVE", "Perform autonomous maintenance.")
     out = run_once(obj)
     print(json.dumps(out, indent=2))
