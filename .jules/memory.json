@@ -1,0 +1,10 @@
+{
+  "fail_task": [
+    {
+      "pattern": ".+",
+      "advice": "Review the log in .jules/logs and re-run; consider enabling debug prints.",
+      "count": 1,
+      "last_seen": 1759172238
+    }
+  ]
+}
