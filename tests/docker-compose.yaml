@@ -1,0 +1,103 @@
+version: "3.8"
+
+services:
+  redis-primary:
+    image: redis:6.2
+    command: redis-server /usr/local/etc/redis/redis.conf
+    volumes:
+      - ./redis/redis-primary.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
+
+  redis-replica1:
+    image: redis:6.2
+    command: redis-server /usr/local/etc/redis/redis.conf
+    volumes:
+      - ./redis/redis-replica.conf:/usr/local/etc/redis/redis.conf
+    depends_on:
+      - redis-primary
+
+  redis-replica2:
+    image: redis:6.2
+    command: redis-server /usr/local/etc/redis/redis.conf
+    volumes:
+      - ./redis/redis-replica.conf:/usr/local/etc/redis/redis.conf
+    depends_on:
+      - redis-primary
+
+  sentinel1:
+    image: redis:6.2
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    volumes:
+      - ./redis/sentinel.conf:/usr/local/etc/redis/sentinel.conf
+    ports:
+      - "26379:26379"
+    depends_on:
+      - redis-primary
+      - redis-replica1
+      - redis-replica2
+
+  sentinel2:
+    image: redis:6.2
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    volumes:
+      - ./redis/sentinel.conf:/usr/local/etc/redis/sentinel.conf
+    ports:
+      - "26380:26379"
+    depends_on:
+      - redis-primary
+      - redis-replica1
+      - redis-replica2
+
+  sentinel3:
+    image: redis:6.2
+    command: redis-sentinel /usr/local/etc/redis/sentinel.conf
+    volumes:
+      - ./redis/sentinel.conf:/usr/local/etc/redis/sentinel.conf
+    ports:
+      - "26381:26379"
+    depends_on:
+      - redis-primary
+      - redis-replica1
+      - redis-replica2
+
+  mock-jwks:
+    image: jwks-mock:latest # This is a placeholder; a real implementation would build a local image
+    build:
+      context: .
+      dockerfile: tests/Dockerfile.jwks-mock
+    ports:
+      - "8001:8001"
+
+  vault-dev:
+    image: vault:1.12
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: root
+    ports:
+      - "8200:8200"
+
+  gateway:
+    build:
+      context: .
+      dockerfile: tests/gateway/Dockerfile
+    environment:
+      PORT: 3001
+      JWT_ISSUER: test-issuer
+      JWKS_URI: http://mock-jwks:8001/.well-known/jwks.json
+      HMAC_DEFAULT_SECRET: topsecret123
+      HMAC_KID: default
+      REDIS_SENTINEL_HOSTS: sentinel1:26379,sentinel2:26380,sentinel3:26381
+      REDIS_SENTINEL_MASTER_NAME: mymaster
+      SKEW_WINDOW_SEC: 300
+      FAIL_CLOSED: "true"
+    ports:
+      - "3001:3001"
+    depends_on:
+      - redis-primary
+      - sentinel1
+      - mock-jwks
+      - vault-dev
