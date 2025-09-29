@@ -40,9 +40,9 @@ def test_route_valid_data_flow(orchestrator: Orchestrator):
     and asserts that no exception is raised.
     """
     matrix = orchestrator.load_matrix()
-    # Select a known valid data flow from the configuration
-    valid_flow = next(flow for flow in matrix.data_flows if flow['from'] == 'Executive' and flow['to'] == 'Action')
-    from_role, to_role = valid_flow["from"], valid_flow["to"]
+    # Select a known valid data flow from the configuration using attribute access
+    valid_flow = next(flow for flow in matrix.data_flows if flow.from_role == 'Executive' and flow.to_role == 'Action')
+    from_role, to_role = valid_flow.from_role, valid_flow.to_role
 
     # This should execute without raising an exception
     orchestrator.route_message(from_role, to_role, {"data": "test payload"})
