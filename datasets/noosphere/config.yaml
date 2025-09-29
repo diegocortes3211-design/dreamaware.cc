@@ -1,0 +1,17 @@
+corpus_name: "wikipedia-2025-09"
+out_dir: "data/noosphere"
+sources:
+  - source_name: "Wikipedia XML Dump"
+    source_uri: "https://example.org/enwiki-20250901-pages-articles.xml.bz2"
+    license: "CC BY-SA 3.0"
+    format: "xml.bz2"
+    language: "en"
+    expected_sha256: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef" # optional but recommended
+  - source_name: "arXiv Metadata"
+    source_uri: "s3://my-bucket/arxiv/2025-09.json.gz"
+    license: "CC BY 4.0"
+    format: "json.gz"
+    language: "multi"
+
+normalization:
+  rules: "datasets/noosphere/normalization.yaml"

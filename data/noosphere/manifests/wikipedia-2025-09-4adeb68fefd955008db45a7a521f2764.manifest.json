@@ -1,0 +1,38 @@
+{
+  "code_version": "985c01406824f98c4363b7df3b62ece2c2d31978",
+  "config_hash": "375a5c5cf5d8a648f3095ef738291dd2e7f9d725f15f1e426f1fbd78c31af2bd",
+  "corpus_name": "wikipedia-2025-09",
+  "manifest_version": "1.0",
+  "normalization": {
+    "rules": null,
+    "steps": []
+  },
+  "pipeline_run_id": "4adeb68fefd955008db45a7a521f2764",
+  "snapshot_date": "2025-09-29T05:45:35.031290Z",
+  "sources": [
+    {
+      "download_date": "2025-09-29T05:45:35.031485Z",
+      "file_name": "enwiki-20250901-pages-articles.xml.bz2",
+      "file_sha256": null,
+      "filesize_bytes": null,
+      "format": "xml.bz2",
+      "language": "en",
+      "license": "CC BY-SA 3.0",
+      "notes": null,
+      "source_name": "Wikipedia XML Dump",
+      "source_uri": "https://example.org/enwiki-20250901-pages-articles.xml.bz2"
+    },
+    {
+      "download_date": "2025-09-29T05:45:35.031618Z",
+      "file_name": "2025-09.json.gz",
+      "file_sha256": null,
+      "filesize_bytes": null,
+      "format": "json.gz",
+      "language": "multi",
+      "license": "CC BY 4.0",
+      "notes": null,
+      "source_name": "arXiv Metadata",
+      "source_uri": "s3://my-bucket/arxiv/2025-09.json.gz"
+    }
+  ]
+}
