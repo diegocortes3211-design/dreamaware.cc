@@ -1,0 +1,13 @@
+ImportError while loading conftest '/app/tests/conftest.py'.
+tests/conftest.py:5: in <module>
+    import requests
+E   ModuleNotFoundError: No module named 'requests'
+/home/jules/.pyenv/versions/3.12.11/lib/python3.12/site-packages/torch/_subclasses/functional_tensor.py:279: UserWarning: Failed to initialize NumPy: No module named 'numpy' (Triggered internally at /pytorch/torch/csrc/utils/tensor_numpy.cpp:81.)
+  cpu = _conversion_method_template(device=torch.device("cpu"))
+Traceback (most recent call last):
+  File "/app/services/secfold/gnn_train.py", line 11, in <module>
+    train_gnn()
+  File "/app/services/secfold/gnn_train.py", line 7, in train_gnn
+    x = build_node_features(seq[:-1], self.node_map) # <<< Jules will patch this line
+        ^^^^^^^^^^^^^^^^^^^
+NameError: name 'build_node_features' is not defined

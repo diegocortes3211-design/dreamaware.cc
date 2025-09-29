@@ -1,0 +1,3 @@
+skip feature utils tests
+--> build_node_features: Using placeholder implementation.
+GNN stub OK; tensor shape: (3, 8)
