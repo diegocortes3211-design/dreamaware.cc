@@ -50,6 +50,14 @@ class Executive:
                 res = self._predict_attack_paths(semgrep_results)
             elif a.name == "collect_findings":
                 res = {"notes": "collection pass complete", "paths": a.params.get("paths", [])}
+            elif a.name == "read_file":
+                res = self._read_file(a.params.get("path"))
+            elif a.name == "run_linter":
+                res = self._run_linter(a.params.get("path"))
+            elif a.name == "get_test_coverage":
+                res = self._get_test_coverage()
+            elif a.name == "apply_patch":
+                res = self._apply_patch(a.params.get("patch"))
             else:
                 res = {"error": f"unknown action {a.name}"}
 
@@ -123,3 +131,54 @@ class Executive:
             return {"ok": True, "data": json.loads(path.read_text())}
         except json.JSONDecodeError:
             return {"ok": False, "reason": "invalid json"}
+
+    def _read_file(self, file_path: str) -> Dict[str, Any]:
+        """Reads a file and returns its content."""
+        if not file_path:
+            return {"ok": False, "reason": "path not provided"}
+        path = Path(file_path)
+        if not path.exists():
+            return {"ok": False, "reason": f"file not found: {file_path}"}
+        try:
+            return {"ok": True, "content": path.read_text()}
+        except Exception as e:
+            return {"ok": False, "reason": str(e)}
+
+    def _run_linter(self, file_path: str) -> Dict[str, Any]:
+        """Runs flake8 on a file and returns the output."""
+        if not file_path:
+            return {"ok": False, "reason": "path not provided"}
+        try:
+            p = subprocess.run(
+                ["flake8", file_path],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            return {"ok": True, "output": p.stdout, "exit_code": p.returncode}
+        except FileNotFoundError:
+            return {"ok": False, "reason": "flake8 not installed"}
+        except Exception as e:
+            return {"ok": False, "reason": str(e)}
+
+    def _get_test_coverage(self) -> Dict[str, Any]:
+        """Returns mock test coverage data."""
+        return {"ok": True, "coverage": 95.5, "status": "mocked_data"}
+
+    def _apply_patch(self, patch: str) -> Dict[str, Any]:
+        """Applies a patch using git apply."""
+        if not patch:
+            return {"ok": False, "reason": "patch not provided"}
+        try:
+            p = subprocess.run(
+                ["git", "apply", "-"],
+                input=patch,
+                capture_output=True,
+                text=True,
+                check=False,  # We check returncode manually
+            )
+            if p.returncode != 0:
+                return {"ok": False, "reason": "git apply failed", "stderr": p.stderr}
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "reason": str(e)}
