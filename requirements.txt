@@ -4,6 +4,8 @@ scipy
 requests
 sentence-transformers
 torch
+pyyaml
+pydantic
 # For testing
 pytest
 # For API (later)

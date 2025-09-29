@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["agents", "data_flows"],
+  "properties": {
+    "agents": {
+      "type": "object",
+      "patternProperties": {
+        "^[A-Za-z_]+$": {
+          "type": "object",
+          "required": ["capabilities", "inputs", "outputs"],
+          "properties": {
+            "capabilities": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "inputs": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "outputs": {
+              "type": "array",
+              "items": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "data_flows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "data_type"],
+        "properties": {
+          "from": {"type": "string"},
+          "to": {"type": "string"},
+          "data_type": {"type": "string"}
+        }
+      }
+    }
+  }
+}

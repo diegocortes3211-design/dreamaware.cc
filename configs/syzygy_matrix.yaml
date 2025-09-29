@@ -1,0 +1,86 @@
+agents:
+  Lifecycle:
+    capabilities:
+      - schedule_tasks
+      - retrain_models
+      - manage_cron_jobs
+    inputs:
+      - training_data_config
+      - system_metrics
+    outputs:
+      - lifecycle_events
+      - retraining_jobs
+  Perception:
+    capabilities:
+      - ingest_logs
+      - stream_telemetry
+      - process_biofeedback
+    inputs:
+      - raw_logs
+      - telemetry_streams
+    outputs:
+      - perception_events
+      - processed_data
+  Resource:
+    capabilities:
+      - allocate_compute
+      - monitor_usage
+      - enforce_quotas
+    inputs:
+      - resource_requests
+      - usage_metrics
+    outputs:
+      - allocation_decisions
+      - quota_alerts
+  Executive:
+    capabilities:
+      - decompose_goals
+      - prioritize_tasks
+      - plan_missions
+    inputs:
+      - user_goals
+      - context_snippets
+    outputs:
+      - task_queue_entries
+      - mission_plans
+  Action:
+    capabilities:
+      - generate_code
+      - apply_migrations
+      - deploy_services
+    inputs:
+      - task_queue_entries
+      - code_templates
+    outputs:
+      - code_diff
+      - deployment_events
+  Context:
+    capabilities:
+      - retrieve_context
+      - semantic_search
+      - update_index
+    inputs:
+      - query_text
+      - codebase_snapshot
+    outputs:
+      - context_snippets
+      - index_status
+data_flows:
+  - from: Lifecycle
+    to: Perception
+    data_type: lifecycle_events
+  - from: Perception
+    to: Context
+    data_type: processed_data
+  - from: Context
+    to: Executive
+    data_type: context_snippets
+  - from: Executive
+    to: Action
+    data_type: task_queue_entries
+  - from: Action
+    to: Resource
+    data_type: deployment_events
+  - from: Resource
+    to: Lifecycle
+    data_type: usage_metrics
