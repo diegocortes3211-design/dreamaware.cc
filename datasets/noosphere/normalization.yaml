@@ -1,0 +1,12 @@
+# Placeholder for normalization rules.
+# Each step in the normalization process will be defined here.
+# For example:
+#
+# steps:
+#   - name: "deduplicate"
+#     script: "scripts/deduplicate.py"
+#     params:
+#       - "--input"
+#       - "${input_file}"
+#       - "--output"
+#       - "${output_file}"
