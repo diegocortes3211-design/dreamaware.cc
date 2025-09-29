@@ -1,0 +1,58 @@
+name: Governance Gate (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      pr_number:
+        description: "Pull Request number to validate"
+        required: true
+        type: number
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute changed files
+        id: diff
+        run: |
+          git fetch origin "${{ github.base_ref }}" --depth=1 || true
+          git diff --name-only "origin/${{ github.base_ref }}"... > changed.txt || true
+          cat changed.txt
+
+      - name: Determine if risk record required
+        id: needs_risk
+        run: |
+          if grep -E '^(engine|simulation|workshop|adversarial|services|physics-engine)/' changed.txt; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "required=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install validators (check-jsonschema + OPA)
+        run: |
+          python3 -m pip install --upgrade pip >/dev/null
+          python3 -m pip install check-jsonschema >/dev/null
+          curl -sSL -o opa https://openpolicyagent.org/downloads/v0.63.0/opa_linux_amd64_static
+          chmod +x opa
+          ./opa version
+
+      - name: Validate risk record (when required)
+        if: steps.needs_risk.outputs.required == 'true'
+        run: |
+          PR=${{ inputs.pr_number }}
+          FILE="configs/risk_records/${PR}.yaml"
+          test -f "$FILE" || (echo "::error::Missing $FILE" && exit 1)
+          check-jsonschema --schemafile configs/schemas/risk_assessment.json "$FILE"
+
+      - name: Validate oversight approval (when PR labeled high-impact)
+        if: contains(github.event.pull_request.labels.*.name, 'high-impact')
+        run: |
+          PR=${{ inputs.pr_number }}
+          FILE="configs/oversight/approvals/${PR}.yaml"
+          test -f "$FILE" || (echo "::error::Missing $FILE (required for 'high-impact' PRs)" && exit 1)
+          check-jsonschema --schemafile configs/schemas/oversight_approval.json "$FILE"
+
+      - name: Run OPA policy tests
+        run: ./opa test configs/policies/opa -v

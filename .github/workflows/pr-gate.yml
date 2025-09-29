@@ -1,0 +1,10 @@
+name: PR Governance Gate
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited, labeled]
+
+jobs:
+  governance-gate:
+    uses: https://github.com/diegocortes3211-design/dreamaware.cc/.github/workflows/governance-gate.yml@main
+    with:
+      pr_number: ${{ github.event.pull_request.number }}

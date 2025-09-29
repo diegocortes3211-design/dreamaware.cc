@@ -1,0 +1,16 @@
+name: Frontend Viz CI
+on:
+  push:
+    paths: ['docs/**', 'simulation/vis/**']
+  pull_request:
+    paths: ['docs/**', 'simulation/vis/**']
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: yarn add d3 react
+      - name: Lint JSX
+        run: npx eslint simulation/vis/*.jsx
