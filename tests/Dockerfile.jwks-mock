@@ -1,0 +1,15 @@
+# Dockerfile for a simple Python-based mock JWKS server
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Install dependencies
+COPY tests/requirements.jwks.txt .
+RUN pip install --no-cache-dir -r requirements.jwks.txt
+
+# Copy the mock server code
+COPY tests/mock_jwks_server.py .
+
+EXPOSE 8001
+
+CMD ["uvicorn", "mock_jwks_server:app", "--host", "0.0.0.0", "--port", "8001"]
