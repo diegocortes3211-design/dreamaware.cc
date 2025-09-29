@@ -1,0 +1,26 @@
+{
+  "patch_gnn_features": [
+    {
+      "pattern": "/bin/sh:\\ 1:\\ Syntax\\ error:\\ \"\\(\"\\ unexpected",
+      "advice": "Review the log in .jules/logs and re-run; consider enabling debug prints.",
+      "count": 2,
+      "last_seen": 1759168301
+    }
+  ],
+  "run_gnn_ci": [
+    {
+      "pattern": "ImportError\\ while\\ loading\\ conftest\\ '/app/tests/conftest\\.py'\\.",
+      "advice": "Try: pip install requests",
+      "count": 6,
+      "last_seen": 1759168759
+    }
+  ],
+  "fail_task": [
+    {
+      "pattern": ".+",
+      "advice": "Review the log in .jules/logs and re-run; consider enabling debug prints.",
+      "count": 1,
+      "last_seen": 1759169144
+    }
+  ]
+}

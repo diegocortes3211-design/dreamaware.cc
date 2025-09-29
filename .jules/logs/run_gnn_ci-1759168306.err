@@ -1,0 +1,9 @@
+ImportError while loading conftest '/app/tests/conftest.py'.
+tests/conftest.py:5: in <module>
+    import requests
+E   ModuleNotFoundError: No module named 'requests'
+Traceback (most recent call last):
+  File "/app/services/secfold/gnn_train.py", line 2, in <module>
+    import torch
+ModuleNotFoundError: No module named 'torch'
+python: can't open file '/app/services/secfold/train.py': [Errno 2] No such file or directory
