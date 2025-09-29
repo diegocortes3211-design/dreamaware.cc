@@ -1,0 +1,29 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: opa-egress
+  namespace: dreamaware-staging
+spec:
+  workloadSelector:
+    labels:
+      app.kubernetes.io/part-of: video-generation
+  configPatches:
+    - applyTo: HTTP_FILTER
+      match:
+        context: SIDECAR_OUTBOUND
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.ext_authz
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+            http_service:
+              server_uri:
+                uri: http://opa.dreamaware-staging.svc.cluster.local:8181
+                cluster: outbound|8181||opa.dreamaware-staging.svc.cluster.local
+              timeout: 0.25s
+              authorization_request:
+                headers_to_add:
+                  - key: x-spiffe-id
+                    value: "%DOWNSTREAM_PEER_FINGERPRINT%"
+                path_prefix: /v1/data/dreamaware/videogen/egress

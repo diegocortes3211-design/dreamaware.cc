@@ -1,0 +1,20 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: strict-mtls
+  namespace: dreamaware-staging
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: spire.spiffe.io/v1alpha1
+kind: ClusterSPIFFEID
+metadata:
+  name: video-gen-identities-staging
+spec:
+  spiffeIDTemplate: "spiffe://dreamaware.ai/ns/{{ .PodMeta.Namespace }}/sa/{{ .PodSpec.ServiceAccountName }}"
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/part-of: video-generation
+  namespaces:
+    - dreamaware-staging
