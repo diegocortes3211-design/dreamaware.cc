@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Vulnerability Map",
+  "description": "A standardized format for documenting a single security vulnerability finding.",
+  "type": "object",
+  "required": [
+    "component",
+    "claim",
+    "evidence",
+    "vector",
+    "risk",
+    "finding",
+    "mitigation",
+    "checks",
+    "dabench",
+    "provenance",
+    "status"
+  ],
+  "properties": {
+    "component": {
+      "type": "string",
+      "description": "The specific file, function, or component being analyzed (e.g., 'services/api/ingest.py:normalize_input')."
+    },
+    "claim": {
+      "type": "string",
+      "description": "A short statement about what the component claims to do."
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["file", "lines", "snippet", "inputs"],
+      "properties": {
+        "file": { "type": "string" },
+        "lines": { "type": "string" },
+        "snippet": { "type": "string" },
+        "inputs": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "vector": {
+      "type": "string",
+      "description": "The Socratic inquiry vector used to find the flaw (e.g., 'Security/Input trust')."
+    },
+    "risk": {
+      "type": "object",
+      "required": ["impact", "likelihood", "severity"],
+      "properties": {
+        "impact": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+        "likelihood": { "type": "string", "enum": ["low", "medium", "high"] },
+        "severity": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "finding": {
+      "type": "string",
+      "description": "A clear description of the vulnerability."
+    },
+    "mitigation": {
+      "type": "string",
+      "description": "A high-level description of the proposed fix."
+    },
+    "checks": {
+      "type": "object",
+      "properties": {
+        "semgrep": { "type": "array", "items": { "type": "string" } },
+        "tests": { "type": "array", "items": { "type": "string" } },
+        "opa": { "type": "string" }
+      }
+    },
+    "dabench": {
+      "type": "object",
+      "required": ["utility", "safety", "cost"],
+      "properties": {
+        "utility": { "type": "number" },
+        "safety": { "type": "number" },
+        "cost": { "type": "number" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["commit", "pr", "timestamp"],
+      "properties": {
+        "commit": { "type": "string" },
+        "pr": { "type": "integer" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["open", "closed", "remediated", "accepted"]
+    }
+  }
+}

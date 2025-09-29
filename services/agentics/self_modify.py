@@ -8,46 +8,41 @@ import time
 
 class SelfModifier:
     """
-    Proposes safe, reviewable changes based on evaluation.
+    Proposes safe, reviewable changes based on evaluation and Socratic analysis.
     Writes proposals to logs and never mutates code by default.
     """
 
-    def propose(self, evaluation: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def propose(self, evaluation: Dict[str, Any], vuln_maps: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         props: List[Dict[str, Any]] = []
+
+        # Generate proposals from vulnerability maps
+        for vuln_map in vuln_maps:
+            if vuln_map.get("status") == "open":
+                props.append(
+                    {
+                        "title": f"Mitigate Vulnerability in {vuln_map.get('component', 'N/A')}",
+                        "kind": "security",
+                        "summary": f"Finding: {vuln_map.get('finding', 'N/A')}. Recommended Mitigation: {vuln_map.get('mitigation', 'N/A')}",
+                        "impact": vuln_map.get("risk", {}).get("impact", "medium"),
+                        "vector": vuln_map.get("vector", "N/A"),
+                    }
+                )
+
+        # Keep a general safety proposal if the score is low but no specific vulns were mapped.
         score = evaluation.get("score", {})
         safety = float(score.get("safety", 0.0))
-        semgrep_findings = int(evaluation.get("semgrep_findings", 0))
-        affected_files = int(evaluation.get("affected_files_in_attack_paths", 0))
-
-        if safety < 0.9:
+        if not props and safety < 0.9:
             props.append(
                 {
                     "title": "Improve safety gate",
                     "kind": "ci",
-                    "summary": "Tune OPA policy and Semgrep rules, raise coverage on risky paths",
+                    "summary": "Safety score is low, but no specific vulnerabilities were mapped. Review OPA policy, Semgrep rules, and test coverage.",
                     "impact": "safety",
                 }
             )
-        if semgrep_findings > 0:
-            props.append(
-                {
-                    "title": "Address static analysis findings",
-                    "kind": "code",
-                    "summary": "Review Semgrep results and patch flagged files",
-                    "impact": "safety",
-                }
-            )
-        if affected_files > 0:
-            props.append(
-                {
-                    "title": "Mitigate predicted attack paths",
-                    "kind": "refactor",
-                    "summary": f"{affected_files} files are in predicted attack paths. Consider refactoring dependencies to break these chains.",
-                    "impact": "safety",
-                }
-            )
+
         if not props:
-            props.append({"title": "No changes proposed", "kind": "noop", "summary": "", "impact": "none"})
+            props.append({"title": "No changes proposed", "kind": "noop", "summary": "No open vulnerabilities found and safety score is high.", "impact": "none"})
         return props
 
     def persist(self, proposals: List[Dict[str, Any]], out_dir: Path) -> Path:

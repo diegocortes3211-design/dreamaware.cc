@@ -9,6 +9,7 @@ import os
 from .executive import Executive
 from .evaluator import Evaluator
 from .self_modify import SelfModifier
+from .socratic import SocraticAnalyzer
 
 
 def run_once(objective: str) -> Dict[str, Any]:
@@ -17,12 +18,14 @@ def run_once(objective: str) -> Dict[str, Any]:
 
     execu = Executive()
     evalr = Evaluator()
+    socratic = SocraticAnalyzer()
     mod = SelfModifier()
 
     plan = execu.plan(objective)
     exec_out = execu.run(plan)
     evaluation = evalr.evaluate(exec_out)
-    proposals = mod.propose(evaluation)
+    vuln_maps = socratic.analyze(exec_out, evaluation)
+    proposals = mod.propose(evaluation, vuln_maps)
     proposal_path = mod.persist(proposals, logs)
 
     report = {
@@ -30,6 +33,7 @@ def run_once(objective: str) -> Dict[str, Any]:
         "time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "executive": exec_out,
         "evaluation": evaluation,
+        "socratic_analysis": vuln_maps,
         "proposals_file": str(proposal_path),
     }
     (logs / "last_report.json").write_text(json.dumps(report, indent=2))
