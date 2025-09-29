@@ -6,9 +6,6 @@ from typing import Any, Dict, List
 import json
 import subprocess
 
-from services.secfold.graph_builder import GraphBuilder
-from services.secfold.path_predictor import PathPredictor
-
 
 @dataclass
 class Action:
@@ -26,7 +23,6 @@ class Executive:
         steps: List[Action] = [
             Action("scan_semgrep", {}),
             Action("run_opa_tests", {}),
-            Action("predict_attack_paths", {}),
             Action("read_dabench", {}),
             Action("collect_findings", {"paths": ["policy", "scripts", "services"]}),
         ]
@@ -34,50 +30,19 @@ class Executive:
 
     def run(self, actions: List[Action]) -> Dict[str, Any]:
         out: Dict[str, Any] = {"actions": []}
-        # Store results of actions to be used by subsequent actions
-        results_cache: Dict[str, Any] = {}
-
         for a in actions:
-            res = {}
             if a.name == "scan_semgrep":
                 res = self._semgrep_json()
             elif a.name == "run_opa_tests":
                 res = self._opa_test_json()
             elif a.name == "read_dabench":
                 res = self._read_json(Path("dabench/report.json"))
-            elif a.name == "predict_attack_paths":
-                semgrep_results = results_cache.get("scan_semgrep", {})
-                res = self._predict_attack_paths(semgrep_results)
             elif a.name == "collect_findings":
                 res = {"notes": "collection pass complete", "paths": a.params.get("paths", [])}
             else:
                 res = {"error": f"unknown action {a.name}"}
-
-            results_cache[a.name] = res
             out["actions"].append({"name": a.name, "result": res})
         return out
-
-    def _predict_attack_paths(self, semgrep_results: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Builds a dependency graph and predicts attack paths from vulnerabilities.
-        """
-        if not semgrep_results.get("ok"):
-            return {"ok": False, "reason": "Semgrep results not available."}
-
-        vulnerability_nodes = [finding["path"] for finding in semgrep_results.get("findings", [])]
-        if not vulnerability_nodes:
-            return {"ok": True, "predicted_paths": {}}
-
-        try:
-            builder = GraphBuilder()
-            graph = builder.build_graph()
-
-            predictor = PathPredictor(graph)
-            predicted_paths = predictor.predict_paths(vulnerability_nodes)
-
-            return {"ok": True, "predicted_paths": predicted_paths}
-        except Exception as e:
-            return {"ok": False, "reason": f"Error during path prediction: {e}"}
 
     def _semgrep_json(self) -> Dict[str, Any]:
         try:
