@@ -1,0 +1,11 @@
+networkx
+numpy
+scipy
+requests
+sentence-transformers
+torch
+# For testing
+pytest
+# For API (later)
+# fastapi
+# uvicorn
