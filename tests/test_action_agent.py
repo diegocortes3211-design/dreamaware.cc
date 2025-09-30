@@ -61,7 +61,29 @@ def test_api_apply_patch_validation_error():
     }
     response = client.post("/v1/action/patch", json=invalid_payload)
     assert response.status_code == 422
-    assert "field required" in response.text
+    # Check for a more specific error message in the JSON response
+    error_details = response.json().get("detail", [])
+    assert any(
+        err.get("msg") == "Field required" and err.get("loc") == ["body", "branch"]
+        for err in error_details
+    )
+
+
+def test_api_apply_patch_patch_error():
+    """
+    Tests that a PatchError from the service layer is handled correctly by the API.
+    """
+    with patch('services.action.routes.apply_patch') as mock_apply_patch:
+        mock_apply_patch.side_effect = PatchError("A simulated patch error occurred")
+
+        response = client.post("/v1/action/patch", json={
+            "planId": "plan_err", "stepId": "S_err", "repo": "repo",
+            "branch": "main", "diff": "diff", "commitMessage": "msg",
+            "author": {"name": "err", "email": "err@test.com"}
+        })
+
+        assert response.status_code == 400
+        assert response.json() == {"detail": "A simulated patch error occurred"}
 
 # --- Unit Tests for apply_patch function ---
 
@@ -149,3 +171,64 @@ async def test_apply_patch_git_error(mock_clone_from, mock_tempdir):
             commitMessage="a message",
             author={"name": "err", "email": "err@dev.null"}
         )
+
+@pytest.mark.asyncio
+@patch('services.action.main.open', new_callable=mock_open)
+@patch('services.action.main.tempfile.TemporaryDirectory')
+@patch('services.action.main.git.Repo.clone_from')
+async def test_apply_patch_apply_error(mock_clone_from, mock_tempdir, mock_open_call):
+    """
+    Tests that PatchError is raised when the git apply command fails.
+    """
+    # --- Mock setup ---
+    mock_tempdir.return_value.__enter__.return_value = "/fake/temp/dir"
+    mock_repo = MagicMock()
+    mock_clone_from.return_value = mock_repo
+    # Simulate a failure on the 'git apply' command. Note that the check call passes.
+    mock_repo.git.apply.side_effect = git.GitCommandError(
+        "apply", status=1, stderr="error: patch failed"
+    )
+
+    # --- Call and assert exception ---
+    # The match regex is updated to handle multiline stderr.
+    with pytest.raises(PatchError, match=r"Git operation failed: [\s\S]*error: patch failed"):
+        await apply_patch(
+            planId="plan-3",
+            stepId="step-3",
+            repo="test-repo",
+            branch="main",
+            diff="invalid diff",
+            commitMessage="a message",
+            author={"name": "err", "email": "err@dev.null"}
+        )
+
+# --- Unit Tests for _create_jws_signature function ---
+
+import json
+from jwcrypto import jwk, jws
+from services.action.main import _create_jws_signature
+
+def test_create_jws_signature():
+    """
+    Tests the JWS signature creation logic to ensure it's valid and correct.
+    """
+    # 1. Generate a key and a payload
+    key = jwk.JWK.generate(kty="OKP", crv="Ed25519")
+    payload = {"test": "data", "iat": 1678886400}
+
+    # 2. Create the signature
+    signature = _create_jws_signature(payload, key)
+
+    # 3. Verify the signature
+    jws_token = jws.JWS()
+    jws_token.deserialize(signature)
+    jws_token.verify(key)
+
+    # 4. Check the protected header
+    protected_header = json.loads(jws_token.objects["protected"])
+    assert protected_header["alg"] == "EdDSA"
+    assert "jwk" in protected_header
+    assert protected_header["jwk"]["crv"] == "Ed25519"
+
+    # 5. Check the payload
+    assert json.loads(jws_token.objects["payload"]) == payload

@@ -1,0 +1,32 @@
+{
+  "title": "KEV → TTP → Control Coverage",
+  "panels": [
+    {
+      "type": "gauge",
+      "title": "KEV Coverage Ratio",
+      "targets": [{ "expr": "kev_coverage_ratio" }]
+    },
+    {
+      "type": "stat",
+      "title": "KEV Total / TTP Mapped / Control Covered",
+      "targets": [
+        { "expr": "kev_total" },
+        { "expr": "kev_ttp_mapped_total" },
+        { "expr": "kev_control_covered_total" }
+      ]
+    },
+    {
+      "type": "bargauge",
+      "title": "Top ATT&CK Techniques in KEV",
+      "targets": [{ "expr": "sum by (tech) (kev_top_technique_count)" }]
+    },
+    {
+      "type": "bargauge",
+      "title": "KEV by Vendor",
+      "targets": [{ "expr": "sum by (vendor) (kev_vendor_count)" }]
+    }
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1
+}
