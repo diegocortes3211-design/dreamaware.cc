@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dreamaware.cc/schemas/citations-ai.json",
+  "title": "AI Citations Schema",
+  "description": "Schema for validating AI research citations",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "required": ["title", "authors", "year", "venue", "url"],
+    "properties": {
+      "title": {
+        "type": "string",
+        "minLength": 3,
+        "description": "The title of the research paper"
+      },
+      "authors": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "minLength": 2
+        },
+        "description": "List of authors of the paper"
+      },
+      "year": {
+        "type": "integer",
+        "minimum": 1950,
+        "maximum": 2030,
+        "description": "Publication year"
+      },
+      "venue": {
+        "type": "string",
+        "minLength": 2,
+        "description": "Publication venue (conference/journal)"
+      },
+      "url": {
+        "type": "string",
+        "format": "uri",
+        "description": "URL to the paper"
+      },
+      "doi": {
+        "type": "string",
+        "pattern": "^10\\..+/.+",
+        "description": "Digital Object Identifier"
+      },
+      "abstract": {
+        "type": "string",
+        "minLength": 50,
+        "description": "Abstract of the paper"
+      },
+      "keywords": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "minLength": 2
+        },
+        "description": "Keywords associated with the paper"
+      }
+    },
+    "additionalProperties": false
+  },
+  "examples": [
+    [
+      {
+        "title": "Attention Is All You Need",
+        "authors": ["Ashish Vaswani", "Noam Shazeer"],
+        "year": 2017,
+        "venue": "NIPS",
+        "url": "https://arxiv.org/abs/1706.03762",
+        "doi": "10.48550/arXiv.1706.03762",
+        "abstract": "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks.",
+        "keywords": ["transformer", "attention mechanism"]
+      }
+    ]
+  ]
+}

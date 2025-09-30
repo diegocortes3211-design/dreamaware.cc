@@ -1,0 +1,164 @@
+name: Build References
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'citations/**'
+  pull_request:
+    paths:
+      - 'citations/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-references:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        run: |
+          npm install --no-save ajv ajv-formats
+
+      - name: Generate BibTeX references
+        id: generate-bibtex
+        run: |
+          # Create BibTeX generation script
+          cat > generate-bibtex.cjs << 'EOF'
+          const fs = require('fs');
+          const path = require('path');
+
+          function generateBibTeX(citations) {
+            let bibtex = '';
+            
+            citations.forEach((citation, index) => {
+              const key = citation.title
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '')
+                .substring(0, 20) + citation.year;
+              
+              bibtex += `@article{${key},\n`;
+              bibtex += `  title={${citation.title}},\n`;
+              bibtex += `  author={${citation.authors.join(' and ')}},\n`;
+              bibtex += `  year={${citation.year}},\n`;
+              bibtex += `  journal={${citation.venue}},\n`;
+              if (citation.url) bibtex += `  url={${citation.url}},\n`;
+              if (citation.doi) bibtex += `  doi={${citation.doi}},\n`;
+              if (citation.abstract) bibtex += `  abstract={${citation.abstract}},\n`;
+              bibtex += `}\n\n`;
+            });
+            
+            return bibtex;
+          }
+
+          // Load citations
+          const citationsPath = path.join(process.cwd(), 'citations', 'ai.json');
+          const citations = JSON.parse(fs.readFileSync(citationsPath, 'utf8'));
+
+          // Generate BibTeX
+          const bibtex = generateBibTeX(citations);
+          fs.writeFileSync('references.bib', bibtex);
+
+          // Generate HTML
+          let html = `<!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>AI Research References</title>
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1200px; margin: 0 auto; padding: 2rem; }
+              .citation { margin-bottom: 2rem; padding: 1rem; border-left: 3px solid #007acc; background: #f8f9fa; }
+              .title { font-size: 1.2em; font-weight: bold; color: #007acc; margin-bottom: 0.5rem; }
+              .authors { color: #666; margin-bottom: 0.5rem; }
+              .venue { font-style: italic; margin-bottom: 0.5rem; }
+              .links a { margin-right: 1rem; color: #007acc; text-decoration: none; }
+              .links a:hover { text-decoration: underline; }
+              .abstract { margin-top: 1rem; line-height: 1.6; }
+              .keywords { margin-top: 0.5rem; }
+              .keyword { background: #e9ecef; padding: 0.2rem 0.5rem; margin-right: 0.5rem; border-radius: 3px; font-size: 0.9em; }
+            </style>
+          </head>
+          <body>
+            <h1>AI Research References</h1>
+            <p>Generated on ${new Date().toISOString().split('T')[0]} | ${citations.length} citations</p>
+          `;
+
+          citations.forEach(citation => {
+            html += `<div class="citation">
+              <div class="title">${citation.title}</div>
+              <div class="authors">${citation.authors.join(', ')}</div>
+              <div class="venue">${citation.venue} (${citation.year})</div>
+              <div class="links">`;
+            if (citation.url) html += `<a href="${citation.url}" target="_blank">View Paper</a>`;
+            if (citation.doi) html += `<a href="https://doi.org/${citation.doi}" target="_blank">DOI</a>`;
+            html += `</div>`;
+            if (citation.abstract) html += `<div class="abstract">${citation.abstract}</div>`;
+            if (citation.keywords) {
+              html += `<div class="keywords">`;
+              citation.keywords.forEach(keyword => {
+                html += `<span class="keyword">${keyword}</span>`;
+              });
+              html += `</div>`;
+            }
+            html += `</div>`;
+          });
+
+          html += '</body></html>';
+          fs.writeFileSync('references.html', html);
+
+          console.log(`✅ Generated references for ${citations.length} citations`);
+          EOF
+
+          node generate-bibtex.cjs
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: references-${{ github.run_number }}
+          path: |
+            references.bib
+            references.html
+          retention-days: 90
+
+      - name: Generate job summary
+        if: always()
+        run: |
+          echo "# 📖 References Build Results" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "references.bib" ] && [ -f "references.html" ]; then
+            BIBTEX_SIZE=$(wc -c < references.bib)
+            HTML_SIZE=$(wc -c < references.html)
+            
+            echo "✅ **Build Status:** SUCCESS" >> $GITHUB_STEP_SUMMARY
+            echo "📄 **BibTeX Size:** ${BIBTEX_SIZE} bytes" >> $GITHUB_STEP_SUMMARY
+            echo "🌐 **HTML Size:** ${HTML_SIZE} bytes" >> $GITHUB_STEP_SUMMARY
+            echo "🔗 **Artifacts:** references-${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Both BibTeX and HTML references have been successfully generated." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Build Status:** FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "Could not generate reference files." >> $GITHUB_STEP_SUMMARY
+          fi
