@@ -15,6 +15,9 @@ dependencies = [
     "GitPython",
     "jwcrypto",
     "psycopg[binary]",
+    "httpx",
+    "requests",
+    "PyJWT",
 ]
 
 [project.optional-dependencies]
