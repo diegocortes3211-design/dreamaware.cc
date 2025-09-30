@@ -12,3 +12,5 @@ aioredis
 httpx
 fastapi
 uvicorn[standard]
+hypothesis
+python-json-logger

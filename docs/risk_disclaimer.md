@@ -1,0 +1,1 @@
+Xikizpedia provides educational information only. It does not provide medical or legal advice. For health or substance-use questions, consult a qualified professional.
