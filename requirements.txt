@@ -12,3 +12,4 @@ aioredis
 httpx
 fastapi
 uvicorn[standard]
+slack-bolt
