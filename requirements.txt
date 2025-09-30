@@ -8,6 +8,7 @@ pyyaml
 pydantic
 # For testing
 pytest
-# For API (later)
-# fastapi
-# uvicorn
+aioredis
+httpx
+fastapi
+uvicorn[standard]
