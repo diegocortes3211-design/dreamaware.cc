@@ -22,6 +22,12 @@ api = [
     "fastapi",
     "uvicorn[standard]",
 ]
+slack = [
+    "fastapi",
+    "uvicorn[standard]",
+    "httpx",
+    "slack-bolt",
+]
 dev = [
     "pytest",
     "pytest-asyncio",

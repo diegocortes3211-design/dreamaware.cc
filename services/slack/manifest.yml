@@ -1,0 +1,32 @@
+_metadata:
+  major_version: 1
+  minor_version: 1
+display_information:
+  name: Dreamaware AI Bridge
+  description: Connects Slack to the UCAPI and other internal AI services.
+features:
+  bot_user:
+    display_name: DABridge
+    always_online: false
+  slash_commands:
+    - command: /da
+      description: Send a prompt to the Dreamaware AI platform.
+      usage_hint: "[your prompt]"
+      should_escape: false
+oauth_config:
+  scopes:
+    bot:
+      - commands
+      - app_mentions:read
+      - chat:write
+settings:
+  event_subscriptions:
+    request_url: https://<your-public-host>/slack/events
+    bot_events:
+      - app_mention
+  interactivity:
+    is_enabled: true
+    request_url: https://<your-public-host>/slack/actions
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false
