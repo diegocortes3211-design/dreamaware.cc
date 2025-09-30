@@ -1,0 +1,53 @@
+# Action catalog read by the Executive planner.
+# Each action must declare a name, purpose, inputs schema, outputs schema, cost, and safety notes.
+actions:
+  - name: fetch_url
+    purpose: "Download text from a URL."
+    inputs:
+      url: {type: string, required: true}
+      timeout_s: {type: integer, required: false, default: 20}
+    outputs:
+      text: {type: string}
+    cost: low
+    safety: "Allowlist domains if policy requires."
+
+  - name: chunk_text
+    purpose: "Split text into chunks."
+    inputs:
+      text: {type: string, required: true}
+      max_tokens: {type: integer, required: false, default: 800}
+    outputs:
+      chunks: {type: array}
+    cost: low
+    safety: "Strip PII per policy."
+
+  - name: embed_store
+    purpose: "Generate embeddings and upsert to index."
+    inputs:
+      chunks: {type: array, required: true}
+      index_path: {type: string, required: true}
+    outputs:
+      count: {type: integer}
+    cost: medium
+    safety: "Persist only policy compliant content."
+
+  - name: retrieve
+    purpose: "Similarity search over index."
+    inputs:
+      query: {type: string, required: true}
+      index_path: {type: string, required: true}
+      top_k: {type: integer, required: false, default: 5}
+    outputs:
+      contexts: {type: array}
+    cost: low
+    safety: "No unsafe side effects."
+
+  - name: prompt_chain_run
+    purpose: "Run prompt chain over contexts."
+    inputs:
+      query: {type: string, required: true}
+      contexts: {type: array, required: true}
+    outputs:
+      answer: {type: string}
+    cost: medium
+    safety: "Zero slop output gate enforced."
