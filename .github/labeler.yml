@@ -1,0 +1,30 @@
+# Auto-label PRs by touched paths
+infra:
+  - 'k8s/**/*'
+  - 'infra/**/*'
+  - 'services/**/deployment.yaml'
+security:
+  - 'policies/**/*'
+  - 'security/**/*'
+  - 'fortress/**/*'
+  - '**/rego/**'
+ucapi:
+  - 'services/ucapi/**/*'
+slack:
+  - 'services/slack/**/*'
+dreadapi:
+  - 'services/public/dread_gateway/**/*'
+agentics:
+  - 'services/agentics/**/*'
+video:
+  - 'services/video*/**/*'
+docs:
+  - 'docs/**/*'
+  - '**/*.md'
+monorepo-refactor:
+  - 'packages/**/*'
+  - 'apps/**/*'
+  - 'turbo.json'
+  - 'pnpm-workspace.yaml'
+rekor:
+  - '**/rekor*/**/*'
