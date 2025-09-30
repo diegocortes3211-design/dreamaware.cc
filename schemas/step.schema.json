@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Step",
+  "type": "object",
+  "required": [
+    "id",
+    "lesson_id",
+    "kind",
+    "payload"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^stp_[a-zA-Z0-9_]+$"
+    },
+    "lesson_id": {
+      "type": "string",
+      "pattern": "^lsn_[a-zA-Z0-9_]+$"
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["read", "spot", "explain", "check", "reflect", "note"]
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "definitions": {
+    "checkPayload": {
+      "type": "object",
+      "required": ["question", "choices", "answer", "context", "sources"],
+      "properties": {
+        "question": { "type": "string" },
+        "choices": { "type": "array", "items": { "type": "string" } },
+        "answer": { "type": "integer" },
+        "context": { "type": "string" },
+        "sources": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

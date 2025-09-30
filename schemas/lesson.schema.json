@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Lesson",
+  "type": "object",
+  "required": [
+    "id",
+    "source",
+    "title",
+    "state",
+    "steps",
+    "created_at"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^lsn_[a-zA-Z0-9_]+$"
+    },
+    "source": {
+      "type": "object",
+      "required": ["type", "value"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["url", "file", "text"]
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "title": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string",
+      "enum": ["ingest", "decode", "outline", "practice", "review", "export"]
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
