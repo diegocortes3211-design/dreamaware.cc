@@ -1,0 +1,120 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dreadapi
+  namespace: dreamaware-public
+  labels:
+    app: dreadapi
+    privacy-level: maximum
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dreadapi-config
+  namespace: dreamaware-public
+data:
+  DREAD_PRIVACY_LEVEL: "maximum"
+  DREAD_ENABLE_ONION: "true"
+  DREAD_ENABLE_RING_SIG: "true"
+  DREAD_SESSION_TIMEOUT: "3600"
+  DREAD_RATE_LIMIT: "100"
+  DREAD_ENC_ALGO: "chacha20-poly1305"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dreadapi
+  namespace: dreamaware-public
+  labels:
+    app: dreadapi
+    privacy: maximum
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: dreadapi
+  template:
+    metadata:
+      labels:
+        app: dreadapi
+        privacy: maximum
+      annotations:
+        prometheus.io/scrape: "false"  # No metrics to preserve privacy
+    spec:
+      serviceAccountName: dreadapi
+      containers:
+      - name: api
+        image: dreamaware/dreadapi:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: DREAD_PRIVACY_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: dreadapi-config
+              key: DREAD_PRIVACY_LEVEL
+        - name: DREAD_ENABLE_ONION
+          valueFrom:
+            configMapKeyRef:
+              name: dreadapi-config
+              key: DREAD_ENABLE_ONION
+        - name: DREAD_SESSION_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              name: dreadapi-config
+              key: DREAD_SESSION_TIMEOUT
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        securityContext:
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dreadapi
+  namespace: dreamaware-public
+  labels:
+    app: dreadapi
+    privacy: maximum
+spec:
+  selector:
+    app: dreadapi
+  ports:
+  - port: 80
+    targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: dreadapi-vs
+  namespace: dreamaware-public
+spec:
+  hosts:
+  - "dreadapi.dreamaware.ai"
+  gateways:
+  - dreamaware-public/dreamaware-gateway
+  http:
+  - match:
+    - headers:
+        x-privacy-required:
+          exact: "true"
+    route:
+    - destination:
+        host: dreadapi
+        port:
+          number: 80
+    headers:
+      request:
+        set:
+          x-privacy-level: "maximum"
