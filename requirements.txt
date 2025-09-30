@@ -4,7 +4,7 @@ scipy
 requests
 sentence-transformers
 torch
-pyyaml
+PyYAML>=6.0.1
 pydantic
 # For testing
 pytest
