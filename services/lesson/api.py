@@ -1,192 +1,173 @@
+from __future__ import annotations
+
 import json
 import uuid
-import datetime as dt
+from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 from fastapi import FastAPI, HTTPException
-from starlette.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 
-# Assuming the schemas are in the adjacent 'schemas' directory
-from .schemas.lesson import (
-    Lesson,
-    LessonSource,
-    Step,
-    AnswerSubmission,
-    GradedResult,
-    SafetyResult,
-    StepPayload,
-)
-
-app = FastAPI(title="Lesson Service API")
-
-# Allow CORS for local development between Docusaurus and this API
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Docusaurus dev server
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
+# --- Configuration ---
 LESSONS_DIR = Path("lessons")
 LESSONS_DIR.mkdir(exist_ok=True)
 
+# --- Pydantic Models ---
 
-def get_rag_pipeline_output(source: LessonSource) -> Dict[str, Any]:
-    """
-    Dummy function to simulate the output of a RAG pipeline.
-    In a real implementation, this would involve fetching the source,
-    chunking it, and running it through a series of models to
-    decode facts and generate questions.
-    """
-    return {
-        "title": f"Decoded Lesson for: {source.value}",
-        "steps": [
-            {
-                "kind": "check",
-                "payload": {
-                    "question": "Which of the following is a primary color?",
-                    "choices": ["Green", "Blue", "Orange", "Violet"],
-                    "answer": 1,
-                    "context": "Primary colors are red, yellow, and blue.",
-                    "sources": ["art_basics.txt#L1"],
-                },
-            },
-            {
-                "kind": "explain",
-                "payload": {
-                    "question": "Why is the sky blue?",
-                    "context": "The sky appears blue because of how the Earth's atmosphere scatters sunlight.",
-                    "sources": ["physics_for_beginners.md#L42"],
-                },
-            },
-            {
-                "kind": "check",
-                "payload": {
-                    "question": "What is the capital of France?",
-                    "choices": ["London", "Berlin", "Paris", "Madrid"],
-                    "answer": 2,
-                    "context": "Paris is the capital and most populous city of France.",
-                    "sources": ["geography.md#L101"],
-                },
-            },
-        ],
-    }
+class LessonSource(BaseModel):
+    type: str
+    value: str
 
+class Lesson(BaseModel):
+    id: str = Field(default_factory=lambda: f"lsn_{uuid.uuid4().hex[:10]}")
+    source: LessonSource
+    title: str = "Decoded lesson"
+    state: str = "practice"
+    steps: List[str] = Field(default_factory=list)
+    created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
+
+class Step(BaseModel):
+    id: str = Field(default_factory=lambda: f"stp_{uuid.uuid4().hex[:10]}")
+    lesson_id: str
+    kind: str
+    payload: Dict[str, Any]
+
+class AnswerSubmission(BaseModel):
+    step_id: str
+    user_choice: int
+    free_text: str | None = None
+    metrics: Dict[str, Any] | None = None
+
+class GradedResult(BaseModel):
+    ok: bool
+    correct_choice: int
+    score: float
+    explain: str
+    safety: Dict[str, Any]
+
+class Feedback(BaseModel):
+    step_id: str
+    label: str
+    note: str | None = None
+
+
+# --- FastAPI App ---
+app = FastAPI(title="Lesson API")
+
+
+# --- Helper Functions ---
+def save_lesson(lesson: Lesson):
+    lesson_dir = LESSONS_DIR / lesson.id
+    lesson_dir.mkdir(exist_ok=True)
+    (lesson_dir / "lesson.json").write_text(lesson.model_dump_json(indent=2))
+
+def save_step(step: Step):
+    lesson_dir = LESSONS_DIR / step.lesson_id
+    steps_dir = lesson_dir / "steps"
+    steps_dir.mkdir(exist_ok=True)
+    (steps_dir / f"{step.id}.json").write_text(step.model_dump_json(indent=2))
+
+def get_lesson_dir(lesson_id: str) -> Path:
+    lesson_dir = LESSONS_DIR / lesson_id
+    if not lesson_dir.exists():
+        raise HTTPException(status_code=404, detail="Lesson not found")
+    return lesson_dir
+
+# --- API Endpoints ---
 
 @app.post("/api/lesson", response_model=Lesson)
 async def create_lesson(source: LessonSource):
     """
-    Creates a new lesson from a source using a (simulated) RAG pipeline,
-    and saves its structure to the filesystem.
+    Creates a new lesson from a source, generates initial steps, and returns the lesson object.
     """
-    lesson_id = f"lsn_{uuid.uuid4().hex[:10]}"
-    lesson_dir = LESSONS_DIR / lesson_id
-    steps_dir = lesson_dir / "steps"
-    steps_dir.mkdir(parents=True)
+    # This is a mock implementation. A real implementation would use RAG/LLMs.
+    lesson = Lesson(source=source)
 
-    # Simulate RAG pipeline to get lesson structure
-    pipeline_output = get_rag_pipeline_output(source)
+    # Generate some mock steps
+    step1 = Step(lesson_id=lesson.id, kind="check", payload={
+        "question": "Which of these is a fruit?",
+        "choices": ["Carrot", "Apple", "Broccoli"],
+        "answer": 1,
+        "context": "An apple is a sweet, edible fruit produced by an apple tree.",
+        "sources": ["source.txt#L1-L2"]
+    })
+    step2 = Step(lesson_id=lesson.id, kind="explain", payload={
+        "prompt": "Explain why an apple is a fruit."
+    })
 
-    step_ids = []
-    for step_data in pipeline_output["steps"]:
-        step_id = f"stp_{uuid.uuid4().hex[:10]}"
-        step = Step(
-            id=step_id,
-            lesson_id=lesson_id,
-            kind=step_data["kind"],
-            payload=StepPayload(**step_data["payload"]),
-        )
-        with open(steps_dir / f"{step_id}.json", "w") as f:
-            json.dump(step.model_dump(), f, indent=2)
-        step_ids.append(step_id)
+    lesson.steps = [step1.id, step2.id]
 
-    lesson_data = Lesson(
-        id=lesson_id,
-        source=source,
-        title=pipeline_output["title"],
-        state="practice",
-        steps=step_ids,
-        created_at=dt.datetime.now(dt.UTC).isoformat(),
-    )
-    with open(lesson_dir / "lesson.json", "w") as f:
-        json.dump(lesson_data.model_dump(), f, indent=2)
+    save_lesson(lesson)
+    save_step(step1)
+    save_step(step2)
 
-    return lesson_data
+    return lesson
 
-
-@app.get("/api/lesson/{lesson_id}", response_model=Dict[str, Any])
+@app.get("/api/lesson/{lesson_id}", response_model=Dict)
 async def get_lesson(lesson_id: str):
     """
-    Retrieves a lesson and all its associated steps from the filesystem.
+    Retrieves a lesson and its resolved steps.
     """
-    lesson_dir = LESSONS_DIR / lesson_id
-    lesson_file = lesson_dir / "lesson.json"
-    steps_dir = lesson_dir / "steps"
-
-    if not lesson_file.exists():
-        raise HTTPException(status_code=404, detail="Lesson not found")
-
-    with open(lesson_file, "r") as f:
-        lesson_data = json.load(f)
+    lesson_dir = get_lesson_dir(lesson_id)
+    lesson_path = lesson_dir / "lesson.json"
+    lesson_data = json.loads(lesson_path.read_text())
 
     steps_data = []
-    for step_id in lesson_data.get("steps", []):
-        step_file = steps_dir / f"{step_id}.json"
-        if step_file.exists():
-            with open(step_file, "r") as f:
-                steps_data.append(json.load(f))
+    steps_dir = lesson_dir / "steps"
+    if steps_dir.exists():
+        for step_file in steps_dir.glob("*.json"):
+            steps_data.append(json.loads(step_file.read_text()))
 
     return {"lesson": lesson_data, "steps": steps_data}
-
 
 @app.post("/api/lesson/{lesson_id}/answer", response_model=GradedResult)
 async def submit_answer(lesson_id: str, submission: AnswerSubmission):
     """
-    Accepts an answer, logs it, and returns a graded result.
-    This version performs actual grading against the stored step data.
+    Accepts an answer, grades it, and returns the result.
     """
-    lesson_dir = LESSONS_DIR / lesson_id
-    step_file = lesson_dir / "steps" / f"{submission.step_id}.json"
-
-    if not step_file.exists():
+    lesson_dir = get_lesson_dir(lesson_id)
+    step_path = lesson_dir / "steps" / f"{submission.step_id}.json"
+    if not step_path.exists():
         raise HTTPException(status_code=404, detail="Step not found")
 
-    with open(step_file, "r") as f:
-        step_data = json.load(f)
+    step_data = json.loads(step_path.read_text())
 
-    # Log the answer
-    with open(lesson_dir / "answers.log.jsonl", "a") as f:
-        f.write(submission.model_dump_json() + "\n")
+    # Mock grading logic
+    correct_answer = step_data.get("payload", {}).get("answer")
+    is_correct = submission.user_choice == correct_answer
 
-    correct_choice = step_data.get("payload", {}).get("answer")
-    is_correct = submission.user_choice == correct_choice
-
-    return GradedResult(
+    result = GradedResult(
         ok=is_correct,
-        correct_choice=correct_choice,
+        correct_choice=correct_answer,
         score=1.0 if is_correct else 0.0,
-        explain=f"The correct answer was choice {correct_choice + 1}.",
-        safety=SafetyResult(opa_deny=0),  # Dummy safety result
+        explain=f"The correct answer was option {correct_answer}.",
+        safety={"opa_deny": 0}
     )
 
+    # Append answer to log
+    answers_log = lesson_dir / "answers.log.jsonl"
+    with answers_log.open("a") as f:
+        log_entry = {
+            "submission": submission.model_dump(),
+            "result": result.model_dump()
+        }
+        f.write(json.dumps(log_entry) + "\n")
+
+    return result
 
 @app.post("/api/lesson/{lesson_id}/feedback")
-async def submit_feedback(lesson_id: str, feedback: Dict[str, Any]):
+async def submit_feedback(lesson_id: str, feedback: Feedback):
     """
-    Accepts user feedback for a lesson step and logs it.
+    Receives feedback for a step and appends it to a moderation queue.
     """
-    lesson_dir = LESSONS_DIR / lesson_id
-    if not lesson_dir.exists():
-        raise HTTPException(status_code=404, detail="Lesson not found")
+    get_lesson_dir(lesson_id) # just to validate lesson exists
 
-    feedback_log = lesson_dir / "feedback.log.jsonl"
-    with open(feedback_log, "a") as f:
+    feedback_log = LESSONS_DIR / "moderation_queue.log.jsonl"
+    with feedback_log.open("a") as f:
         log_entry = {
-            "timestamp": dt.datetime.now(dt.UTC).isoformat(),
-            "feedback": feedback,
+            "lesson_id": lesson_id,
+            "feedback": feedback.model_dump()
         }
         f.write(json.dumps(log_entry) + "\n")
 

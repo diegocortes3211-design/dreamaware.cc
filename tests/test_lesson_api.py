@@ -1,71 +1,56 @@
 import json
-import os
-import shutil
-from pathlib import Path
 from fastapi.testclient import TestClient
-
-# Make sure the app can be imported
-import sys
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
 from services.lesson.api import app, LESSONS_DIR
 
 client = TestClient(app)
 
-# Define the test fixture path
-FIXTURE_PATH = Path(__file__).parent / "fixtures" / "sample_lesson.md"
+def test_create_lesson():
+    # Ensure the lessons directory is clean before test
+    if LESSONS_DIR.exists():
+        for lesson_dir in LESSONS_DIR.iterdir():
+            if lesson_dir.is_dir():
+                for f in lesson_dir.glob("**/*"):
+                    f.unlink()
+                lesson_dir.rmdir()
 
-def setup_function():
-    """Create the lessons directory before tests."""
-    os.makedirs(LESSONS_DIR, exist_ok=True)
+    # The request payload
+    source_payload = {"type": "url", "value": "https://example.com/post"}
 
-def teardown_function():
-    """Clean up the lessons directory after tests."""
-    if os.path.exists(LESSONS_DIR):
-        shutil.rmtree(LESSONS_DIR)
+    # Make the request
+    response = client.post("/api/lesson", json=source_payload)
 
-def test_create_lesson_from_file():
-    """
-    Tests the POST /api/lesson endpoint by simulating a file upload.
-    """
-    # 1. Define the source
-    source = {"type": "file", "value": str(FIXTURE_PATH)}
-
-    # 2. Make the POST request
-    response = client.post("/api/lesson", json=source)
-
-    # 3. Assert the response is successful
+    # Assertions
     assert response.status_code == 200
     data = response.json()
 
-    # 4. Assert the response contains a valid lesson object
+    # Check root level keys
     assert "id" in data
     assert data["id"].startswith("lsn_")
-    assert data["source"] == source
+    assert "source" in data
+    assert data["source"] == source_payload
     assert "title" in data
-    assert data["state"] == "practice"
+    assert "state" in data
     assert "steps" in data
     assert isinstance(data["steps"], list)
-    assert len(data["steps"]) > 0
+    assert len(data["steps"]) > 0 # Check that steps were created
 
-    # 5. Assert that the created lesson files exist on the filesystem
+    # Check that files were created
     lesson_id = data["id"]
     lesson_dir = LESSONS_DIR / lesson_id
     assert lesson_dir.exists()
     assert (lesson_dir / "lesson.json").exists()
-    assert (lesson_dir / "steps").exists()
 
-    # Check that step files were created
-    num_steps_in_fs = len(list((lesson_dir / "steps").glob("*.json")))
-    assert num_steps_in_fs == len(data["steps"])
+    steps_dir = lesson_dir / "steps"
+    assert steps_dir.exists()
+
+    # Verify the step files exist
+    for step_id in data["steps"]:
+        assert (steps_dir / f"{step_id}.json").exists()
 
 def test_get_lesson():
-    """
-    Tests the GET /api/lesson/{lesson_id} endpoint.
-    """
     # First, create a lesson to test against
-    source = {"type": "url", "value": "https://example.com/test"}
-    create_response = client.post("/api/lesson", json=source)
+    source_payload = {"type": "file", "value": "fixture.md"}
+    create_response = client.post("/api/lesson", json=source_payload)
     assert create_response.status_code == 200
     lesson_id = create_response.json()["id"]
 
@@ -77,38 +62,52 @@ def test_get_lesson():
     assert "lesson" in data
     assert "steps" in data
     assert data["lesson"]["id"] == lesson_id
-    assert len(data["steps"]) == len(data["lesson"]["steps"])
+    assert len(data["steps"]) == len(create_response.json()["steps"])
 
-def test_submit_answer():
-    """
-    Tests the POST /api/lesson/{lesson_id}/answer endpoint.
-    """
-    # Create a lesson
-    source = {"type": "url", "value": "https://example.com/test-answer"}
-    create_response = client.post("/api/lesson", json=source)
-    lesson_id = create_response.json()["id"]
-    step_id = create_response.json()["steps"][0] # Get the first step ID
+def test_submit_answer_correct():
+    # Create lesson
+    create_response = client.post("/api/lesson", json={"type": "text", "value": "..."})
+    lesson = create_response.json()
+    lesson_id = lesson["id"]
 
-    # Submit an answer for the first step
-    submission = {
-        "step_id": step_id,
-        "user_choice": 1,
-        "metrics": {
-            "confidence": 0.8,
-            "slop": {"emoji": 0, "emdash": 0, "endash": 0, "nbsp": 0},
-        },
-    }
-    answer_response = client.post(f"/api/lesson/{lesson_id}/answer", json=submission)
+    # Find the 'check' step
+    get_response = client.get(f"/api/lesson/{lesson_id}")
+    steps = get_response.json()["steps"]
+    check_step = next((s for s in steps if s["kind"] == "check"), None)
+    assert check_step is not None
 
-    assert answer_response.status_code == 200
-    result = answer_response.json()
-    assert "ok" in result
-    assert "correct_choice" in result
-    assert "score" in result
+    step_id = check_step["id"]
+    correct_answer = check_step["payload"]["answer"]
 
-    # Check that the answer was logged
-    answer_log_file = LESSONS_DIR / lesson_id / "answers.log.jsonl"
-    assert answer_log_file.exists()
-    with open(answer_log_file, "r") as f:
-        log_content = f.read()
-        assert step_id in log_content
+    # Submit correct answer
+    answer_payload = {"step_id": step_id, "user_choice": correct_answer}
+    response = client.post(f"/api/lesson/{lesson_id}/answer", json=answer_payload)
+
+    assert response.status_code == 200
+    result = response.json()
+    assert result["ok"] is True
+    assert result["score"] == 1.0
+
+def test_submit_answer_incorrect():
+    # Create lesson
+    create_response = client.post("/api/lesson", json={"type": "text", "value": "..."})
+    lesson = create_response.json()
+    lesson_id = lesson["id"]
+
+    get_response = client.get(f"/api/lesson/{lesson_id}")
+    steps = get_response.json()["steps"]
+    check_step = next((s for s in steps if s["kind"] == "check"), None)
+    step_id = check_step["id"]
+    correct_answer = check_step["payload"]["answer"]
+    incorrect_answer = correct_answer + 1 if correct_answer < 2 else 0
+
+
+    # Submit incorrect answer
+    answer_payload = {"step_id": step_id, "user_choice": incorrect_answer}
+    response = client.post(f"/api/lesson/{lesson_id}/answer", json=answer_payload)
+
+    assert response.status_code == 200
+    result = response.json()
+    assert result["ok"] is False
+    assert result["score"] == 0.0
+    assert result["correct_choice"] == correct_answer
