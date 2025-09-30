@@ -1,0 +1,31 @@
+display_information:
+  name: Dreamaware AI
+  description: Integrates Dreamaware.cc services with Slack.
+  background_color: "#1a1d21"
+features:
+  bot_user:
+    display_name: Dreamaware
+    always_online: true
+  slash_commands:
+    - command: /da
+      url: https://<public-host>/slack/commands
+      description: Send a prompt to the Dreamaware AI.
+      usage_hint: "<your prompt for the AI>"
+      should_escape: false
+oauth_config:
+  scopes:
+    bot:
+      - commands
+      - app_mentions:read
+      - chat:write
+settings:
+  event_subscriptions:
+    request_url: https://<public-host>/slack/events
+    bot_events:
+      - app_mention
+  interactivity:
+    is_enabled: true
+    request_url: https://<public-host>/slack/actions
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false

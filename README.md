@@ -27,6 +27,21 @@ Build an engineer facing wiki and forum that doubles as a security lab and portf
 - No em dashes or en dashes
 - Slop is quantified and flagged in PR reports
 
+## Quick start (local Slack Bridge)
+To run the Slack integration locally, set the required environment variables and start the server:
+```bash
+# Set your secrets (use a .env file or export directly)
+export SLACK_BOT_TOKEN="xoxb-..."
+export SLACK_SIGNING_SECRET="..."
+export UCAPI_URL="http://localhost:8080" # Or your UCAPI endpoint
+export UCAPI_SERVICE_KEY="..."
+export CURSOR_API_KEY="..." # If you plan to use the Cursor adapter
+
+# Run the bridge
+uvicorn services.slack.app:api --host 0.0.0.0 --port 8787
+```
+You will need a tool like `ngrok` to expose this local server to the internet so Slack can send requests to it.
+
 ## Quick start
 ```bash
 # Site
