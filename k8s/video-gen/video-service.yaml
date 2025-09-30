@@ -1,0 +1,61 @@
+# k8s/video-gen/video-service.yaml (GPU-enabled for rendering)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: video-service
+  namespace: video-gen
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: video-service
+  namespace: video-gen
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: video-service
+  template:
+    metadata:
+      labels:
+        app: video-service
+    spec:
+      serviceAccountName: video-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+      containers:
+      - name: video
+        image: dreamaware/video-gen-video:latest
+        ports:
+        - containerPort: 8085
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "2000m"
+            nvidia.com/gpu: "1"  # Request GPU for rendering
+          limits:
+            memory: "4Gi"
+            cpu: "4000m"
+            nvidia.com/gpu: "1"
+        securityContext:
+          allowPrivilegeEscalation: false
+        volumeMounts:
+        - name: workspace
+          mountPath: /workspace
+      volumes:
+      - name: workspace
+        emptyDir:
+          sizeLimit: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: video-service
+  namespace: video-gen
+spec:
+  selector:
+    app: video-service
+  ports:
+  - port: 8085
+    targetPort: 8085

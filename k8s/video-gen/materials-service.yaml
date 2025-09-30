@@ -1,0 +1,79 @@
+# Similar manifests for other services (materials, voice, subtitles, video)
+# Pattern repeats with different service names and SPIFFE IDs
+# Each gets its own ServiceAccount, Deployment, Service, PeerAuthentication, AuthorizationPolicy
+
+# k8s/video-gen/materials-service.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: materials-service
+  namespace: video-gen
+  annotations:
+    vault.hashicorp.com/role: "video-gen-materials"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: materials-service
+  namespace: video-gen
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: materials-service
+  template:
+    metadata:
+      labels:
+        app: materials-service
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "video-gen-materials"
+        vault.hashicorp.com/agent-inject-secret-api-keys: "video-gen/materials/api-keys"
+    spec:
+      serviceAccountName: materials-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+      containers:
+      - name: materials
+        image: dreamaware/video-gen-materials:latest
+        ports:
+        - containerPort: 8082
+        env:
+        - name: REDIS_URL
+          value: "redis://redis-cluster.video-gen.svc.cluster.local:6379"
+        - name: CACHE_TTL_HOURS
+          value: "24"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: cache
+          mountPath: /cache
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: cache
+        emptyDir:
+          sizeLimit: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: materials-service
+  namespace: video-gen
+spec:
+  selector:
+    app: materials-service
+  ports:
+  - port: 8082
+    targetPort: 8082
