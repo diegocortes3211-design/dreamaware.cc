@@ -21,3 +21,20 @@ tasks:
     cmd: |
       (pytest -q tests/secfold/test_feature_utils.py || echo "skip feature utils tests") &&
       python services/secfold/gnn_train.py
+  - id: gym:ucapi_fuzz
+    cmd: pytest -q tools/fuzz/ucapi_fuzz.py || true
+  - id: gym:failures_tail
+    cmd: bash -lc 'ls -1rt reports/failures | tail -n 5 | xargs -I{} sh -c "echo ==== {}; cat reports/failures/{}"'
+  - id: score:creativity_demo
+    cmd: |
+      python - <<'PY'
+      from services.score.creativity import creativity_score
+      s = "def fib(n): a,b=0,1\n while n>0: a,b=b,a+b; n-=1\n return a"
+      print("creativity:", creativity_score(s))
+      PY
+  - id: score:elo_demo
+    cmd: |
+      python - <<'PY'
+      from services.score.elo import update_elo
+      print(update_elo(1500,1500,1.0))
+      PY

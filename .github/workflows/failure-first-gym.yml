@@ -1,0 +1,29 @@
+name: Failure-First Gym
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 * * * *" # hourly
+permissions:
+  contents: read
+  checks: write
+  pull-requests: read
+jobs:
+  fuzz-ucapi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Run UCAPI fuzz (dry)
+        env:
+          UCAPI_URL: ${{ secrets.UCAPI_URL }} # set in repo secrets (staging)
+          UCAPI_SERVICE_KEY: ${{ secrets.UCAPI_SERVICE_KEY }}
+        run: pytest -q tools/fuzz/ucapi_fuzz.py || true
+      - name: Upload failure artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-logs
+          path: reports/failures
