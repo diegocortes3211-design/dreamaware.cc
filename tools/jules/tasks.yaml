@@ -21,3 +21,9 @@ tasks:
     cmd: |
       (pytest -q tests/secfold/test_feature_utils.py || echo "skip feature utils tests") &&
       python services/secfold/gnn_train.py
+  - id: reviewscore:assess
+    cmd: python services/evaluation/reviewscore.py
+    env:
+      HF_MODEL:    "ReviewScore-v1"
+      INPUT_DIR:   "data/reviews/incoming"
+      OUTPUT_FILE: "reports/reviewscore.jsonl"

@@ -1,0 +1,4 @@
+schedules:
+  reviewscore-daily:
+    cron: "0 3 * * *"
+    tasks: [reviewscore:assess]
