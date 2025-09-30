@@ -1,0 +1,15 @@
+# Approved targets for threat scanning
+# Format: One target per line (hostname or IP address)
+# Comments start with #
+
+# Internal test environments
+10.0.0.0/24
+192.168.1.0/24
+
+# Staging environments
+staging.example.com
+test.internal.org
+
+# Pre-approved external targets for security research
+scanme.nmap.org
+testphp.vulnweb.com

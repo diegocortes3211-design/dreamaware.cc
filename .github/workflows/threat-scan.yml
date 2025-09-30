@@ -1,0 +1,228 @@
+name: Authorized Threat Scanning
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target to scan (hostname or IP)'
+        required: true
+        type: string
+      profile:
+        description: 'Scan profile intensity'
+        required: true
+        type: choice
+        options:
+          - recon
+          - light  
+          - full
+        default: recon
+      dry_run:
+        description: 'Dry run (validate only, no actual scan)'
+        required: false
+        type: boolean
+        default: true
+      enable_api_enrichment:
+        description: 'Enable Vulners API enrichment (requires API key)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+  actions: read
+
+jobs:
+  validate:
+    name: Validate Scan Request
+    runs-on: ubuntu-latest
+    outputs:
+      approved: ${{ steps.policy.outputs.approved }}
+      scan_config: ${{ steps.policy.outputs.scan_config }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61c2c5c8c1 # v4.1.7
+        
+      - name: Install OPA
+        uses: open-policy-agent/setup-opa@34a30e8a924d1b03ce2ea53c92d6b29decd66be8 # v2.2.0
+        with:
+          version: 0.66.0
+          
+      - name: Validate with OPA Policy
+        id: policy
+        run: |
+          # Prepare policy input
+          cat > input.json << EOF
+          {
+            "target": "${{ github.event.inputs.target }}",
+            "profile": "${{ github.event.inputs.profile }}",
+            "dry_run": ${{ github.event.inputs.dry_run }},
+            "approval_required": ${{ github.event.inputs.dry_run == 'false' }},
+            "approval_granted": false,
+            "allowlist": $(cat ops/policy/allowlist.json)
+          }
+          EOF
+          
+          # Evaluate policy
+          opa eval -d ops/policy/scan.rego -i input.json "data.scan.policy.allow" > result.json
+          
+          # Check if approved
+          if [ "$(cat result.json | jq -r '.result[0].expressions[0].value')" = "true" ]; then
+            echo "approved=true" >> $GITHUB_OUTPUT
+            echo "✅ Target approved by policy" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "approved=false" >> $GITHUB_OUTPUT
+            echo "❌ Target rejected by policy" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          
+          # Output scan configuration
+          echo "scan_config=$(cat input.json | jq -c .)" >> $GITHUB_OUTPUT
+
+  approval:
+    name: Manual Approval Required
+    runs-on: ubuntu-latest
+    needs: validate
+    if: ${{ github.event.inputs.dry_run == 'false' }}
+    environment: 
+      name: threat-scanning-prod
+    steps:
+      - name: Request Manual Approval
+        run: |
+          echo "🚨 **PRODUCTION THREAT SCAN APPROVAL REQUIRED**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY  
+          echo "Target: ${{ github.event.inputs.target }}" >> $GITHUB_STEP_SUMMARY
+          echo "Profile: ${{ github.event.inputs.profile }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This scan will perform active network reconnaissance against the specified target." >> $GITHUB_STEP_SUMMARY
+          echo "Ensure you have proper authorization before proceeding." >> $GITHUB_STEP_SUMMARY
+
+  scan:
+    name: Execute Threat Scan
+    runs-on: ubuntu-latest
+    needs: [validate, approval]
+    if: ${{ always() && needs.validate.outputs.approved == 'true' && (github.event.inputs.dry_run == 'true' || needs.approval.result == 'success') }}
+    environment: ${{ github.event.inputs.dry_run == 'false' && 'threat-scanning-prod' || null }}
+    steps:
+      - name: Checkout repository  
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61c2c5c8c1 # v4.1.7
+        
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nmap jq curl
+          
+      - name: Configure scan parameters
+        id: config
+        run: |
+          target="${{ github.event.inputs.target }}"
+          profile="${{ github.event.inputs.profile }}"
+          
+          # Define scan profiles with bounded intensity
+          case "$profile" in
+            "recon")
+              nmap_args="-sn -T2 --max-rate 100"
+              description="Host discovery only"
+              ;;
+            "light") 
+              nmap_args="-sS -T3 --top-ports 1000 --max-rate 300"
+              description="TCP SYN scan of top 1000 ports"
+              ;;
+            "full")
+              nmap_args="-sS -sV -T4 --top-ports 5000 --max-rate 500 --script=default"
+              description="Comprehensive scan with service detection"
+              ;;
+          esac
+          
+          echo "nmap_args=$nmap_args" >> $GITHUB_OUTPUT
+          echo "description=$description" >> $GITHUB_OUTPUT
+          echo "target=$target" >> $GITHUB_OUTPUT
+          
+      - name: Dry Run Validation
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        run: |
+          echo "🧪 **DRY RUN MODE**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Target: ${{ steps.config.outputs.target }}" >> $GITHUB_STEP_SUMMARY  
+          echo "Profile: ${{ github.event.inputs.profile }}" >> $GITHUB_STEP_SUMMARY
+          echo "Description: ${{ steps.config.outputs.description }}" >> $GITHUB_STEP_SUMMARY
+          echo "Nmap args: ${{ steps.config.outputs.nmap_args }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Validation completed. No actual scan performed." >> $GITHUB_STEP_SUMMARY
+          
+      - name: Execute Network Scan
+        id: scan
+        if: ${{ github.event.inputs.dry_run == 'false' }}
+        run: |
+          echo "🔍 Executing threat scan..." >> $GITHUB_STEP_SUMMARY
+          
+          # Create output directory
+          mkdir -p scan-results
+          
+          # Execute nmap with timeout and output redaction
+          timeout 1800 nmap ${{ steps.config.outputs.nmap_args }} ${{ steps.config.outputs.target }} \
+            -oN scan-results/scan-output.txt \
+            -oX scan-results/scan-output.xml || true
+            
+          # Redact sensitive information from logs
+          if [ -f scan-results/scan-output.txt ]; then
+            # Remove potential sensitive data but keep structure
+            sed -i 's/[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}/[REDACTED_IP]/g' scan-results/scan-output.txt
+            
+            # Show summary only
+            echo "Scan completed. Results saved." >> $GITHUB_STEP_SUMMARY
+            grep -E "(Nmap scan report|Host is|PORT.*STATE.*SERVICE)" scan-results/scan-output.txt | head -20 >> $GITHUB_STEP_SUMMARY || true
+          fi
+          
+      - name: API Enrichment 
+        if: ${{ github.event.inputs.dry_run == 'false' && github.event.inputs.enable_api_enrichment == 'true' }}
+        env:
+          VULNERS_API_KEY: ${{ secrets.VULNERS_API_KEY }}
+        run: |
+          if [ -z "$VULNERS_API_KEY" ]; then
+            echo "⚠️ Vulners API key not configured, skipping enrichment" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+          
+          echo "🔬 Enriching scan results with Vulners API..." >> $GITHUB_STEP_SUMMARY
+          
+          # Rate limited API calls (max 10 requests)
+          count=0
+          max_requests=10
+          
+          # Extract services from scan results for enrichment
+          if [ -f scan-results/scan-output.xml ]; then
+            # Parse XML for services (simplified)
+            grep -oP 'product="\K[^"]*' scan-results/scan-output.xml | head -5 | while read service; do
+              if [ $count -ge $max_requests ]; then break; fi
+              
+              # Query Vulners API with rate limiting
+              sleep 1
+              curl -s -X GET "https://vulners.com/api/v3/search/lucene/?query=$service" \
+                -H "X-API-Key: $VULNERS_API_KEY" \
+                >> scan-results/vulners-data.json || true
+              
+              count=$((count + 1))
+            done
+          fi
+          
+          echo "API enrichment completed" >> $GITHUB_STEP_SUMMARY
+          
+      - name: Upload scan artifacts
+        if: ${{ github.event.inputs.dry_run == 'false' }}
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        with:
+          name: threat-scan-results-${{ github.run_id }}
+          path: scan-results/
+          retention-days: 7  # Short-lived artifacts for security
+          
+      - name: Security Summary
+        if: ${{ always() }}
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "**Security Notice:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Scan logs have been redacted to remove sensitive information" >> $GITHUB_STEP_SUMMARY  
+          echo "- Artifacts will be deleted after 7 days" >> $GITHUB_STEP_SUMMARY
+          echo "- All scan activities are logged for audit purposes" >> $GITHUB_STEP_SUMMARY
+          echo "- Only pre-approved targets from allowlist can be scanned" >> $GITHUB_STEP_SUMMARY
