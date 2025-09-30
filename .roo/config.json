@@ -1,0 +1,5 @@
+{
+  "tasks_dir": ".roo/tasks",
+  "default_labels": ["roo"],
+  "status_values": ["todo", "doing", "blocked", "done"]
+}
