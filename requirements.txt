@@ -13,3 +13,5 @@ httpx
 fastapi
 uvicorn[standard]
 slack-bolt
+aiohttp
+pytest-asyncio

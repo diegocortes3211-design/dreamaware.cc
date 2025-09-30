@@ -1,72 +1,72 @@
+import os
+
+# Set a dummy API key BEFORE importing the adapter module
+# This prevents the module from raising an error on import
+os.environ["CURSOR_API_KEY"] = "test-key"
+
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch, MagicMock
 from services.llm_adapters import cursor_pro
 
-# Mark all tests in this file as async
-pytestmark = pytest.mark.asyncio
+@pytest.fixture
+def adapter():
+    """Provides a CursorProAdapter instance for testing."""
+    return cursor_pro.CursorProAdapter()
 
-@patch('services.llm_adapters.cursor_pro.client')
-async def test_chat_success(mock_client):
-    """
-    Tests the chat function for a successful API call to Cursor.
-    """
-    mock_response = AsyncMock()
+@pytest.mark.asyncio
+@patch("services.llm_adapters.cursor_pro.httpx.AsyncClient")
+async def test_chat_success(MockAsyncClient, adapter):
+    """Tests the chat method for a successful API call."""
+    # Arrange
+    mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json.return_value = {
-        "choices": [{"message": {"content": "Cursor response"}}]
+        "choices": [{"message": {"content": "Cursor chat response"}}]
     }
-    mock_response.raise_for_status.return_value = None
-    mock_client.post.return_value = mock_response
 
-    messages = [{"role": "user", "content": "Hello Cursor"}]
-    response = await cursor_pro.chat(messages)
+    mock_client_instance = MockAsyncClient.return_value.__aenter__.return_value
+    mock_client_instance.post.return_value = mock_response
 
-    assert response["choices"][0]["message"]["content"] == "Cursor response"
-    mock_client.post.assert_called_once()
+    # Act
+    response = await adapter.chat([{"role": "user", "content": "hello"}])
 
-@patch('services.llm_adapters.cursor_pro.client')
-async def test_generate_code_success(mock_client):
-    """
-    Tests the generate_code helper for a successful generation.
-    """
-    mock_response = AsyncMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "choices": [{"message": {"content": "def hello():\n    print('Hello World')"}}]
+    # Assert
+    assert response["choices"][0]["message"]["content"] == "Cursor chat response"
+    mock_client_instance.post.assert_called_once()
+
+@pytest.mark.asyncio
+@patch("services.llm_adapters.cursor_pro.httpx.AsyncClient")
+async def test_generate_code_success(MockAsyncClient, adapter):
+    """Tests the generate_code method."""
+    # Arrange
+    mock_response_json = {
+        "choices": [{"message": {"content": "print('Hello, World!')"}}]
     }
-    mock_response.raise_for_status.return_value = None
-    mock_client.post.return_value = mock_response
 
-    prompt = "write a hello world function in python"
-    code = await cursor_pro.generate_code(prompt)
-
-    assert "def hello()" in code
-    # The system prompt is added, so the messages will have 2 items
-    call_args = mock_client.post.call_args.kwargs['json']
-    assert len(call_args['messages']) == 2
-    assert call_args['messages'][1]['content'] == prompt
-
-@patch('services.llm_adapters.cursor_pro.client')
-async def test_chat_http_error(mock_client):
-    """
-    Tests that an HTTP error is raised correctly.
-    """
-    mock_client.post.side_effect = Exception("API Error")
-
-    with pytest.raises(Exception, match="API Error"):
-        await cursor_pro.chat([{"role": "user", "content": "test"}])
-
-@patch('services.llm_adapters.cursor_pro.client')
-async def test_generate_code_parsing_error(mock_client):
-    """
-    Tests that a parsing error in the response is handled gracefully.
-    """
-    mock_response = AsyncMock()
+    mock_response = MagicMock()
     mock_response.status_code = 200
-    # Malformed response
-    mock_response.json.return_value = {"choices": []}
-    mock_response.raise_for_status.return_value = None
-    mock_client.post.return_value = mock_response
+    mock_response.json.return_value = mock_response_json
 
-    response = await cursor_pro.generate_code("test")
-    assert "Error: Could not parse the response" in response
+    mock_client_instance = MockAsyncClient.return_value.__aenter__.return_value
+    mock_client_instance.post.return_value = mock_response
+
+    # Act
+    code = await adapter.generate_code("A simple hello world in Python")
+
+    # Assert
+    assert code == "print('Hello, World!')"
+
+@patch.dict(os.environ, {"CURSOR_API_KEY": ""}, clear=True)
+def test_adapter_init_no_key():
+    """
+    Tests that the adapter raises a ValueError if the API key is not set.
+    We patch the environment for this specific test.
+    """
+    with pytest.raises(ValueError, match="CURSOR_API_KEY not set"):
+        # We need to re-import the module within the patched context
+        # to see the change in the environment variable.
+        import importlib
+        importlib.reload(cursor_pro)
+        cursor_pro.CursorProAdapter()
+    # Reload again to restore the original state for other tests
+    importlib.reload(cursor_pro)

@@ -1,31 +1,38 @@
-display_information:
-  name: Dreamaware AI
-  description: Integrates Dreamaware.cc services with Slack.
-  background_color: "#1a1d21"
+_display_information:
+  name: dreamaware-bot
+  description: Dreamaware agent bridge (UCAPI/Linear/Cursor)
 features:
   bot_user:
     display_name: Dreamaware
     always_online: true
   slash_commands:
     - command: /da
-      url: https://<public-host>/slack/commands
-      description: Send a prompt to the Dreamaware AI.
-      usage_hint: "<your prompt for the AI>"
+      description: Ask Dreamaware
+      usage_hint: "/da plan focus 2–4pm"
       should_escape: false
+      url: https://YOUR_PUBLIC_HOST/slack/commands
 oauth_config:
   scopes:
     bot:
-      - commands
       - app_mentions:read
+      - channels:history
       - chat:write
+      - commands
+      - files:write
+      - im:history
+      - mpim:history
+      - reactions:write
+      - users:read
+      - channels:read
+      - team:read
 settings:
   event_subscriptions:
-    request_url: https://<public-host>/slack/events
+    request_url: https://YOUR_PUBLIC_HOST/slack/events
     bot_events:
       - app_mention
+      - message.im
+      - message.channels
   interactivity:
     is_enabled: true
-    request_url: https://<public-host>/slack/actions
+    request_url: https://YOUR_PUBLIC_HOST/slack/actions
   org_deploy_enabled: false
-  socket_mode_enabled: false
-  token_rotation_enabled: false
