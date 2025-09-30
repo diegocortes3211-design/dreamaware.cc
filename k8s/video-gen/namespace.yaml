@@ -1,0 +1,7 @@
+# k8s/video-gen/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: video-gen
+  labels:
+    istio-injection: enabled  # Enable Istio sidecar for mTLS
