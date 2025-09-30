@@ -25,7 +25,7 @@ async def apply_patch_endpoint(req: PatchReq):
         raise HTTPException(status_code=400, detail=str(e))
     except PatchError as e:
         # This exception is for errors during the patch process itself.
-        raise HTTPException(status_code=500, detail=e.message)
+        raise HTTPException(status_code=400, detail=e.message)
     except Exception as e:
         # Catch any other unexpected errors.
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")

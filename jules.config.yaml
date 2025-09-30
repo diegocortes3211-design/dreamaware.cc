@@ -1,0 +1,7 @@
+schedules:
+  vulnerability-enrichment:
+    cron: "0 3 * * *"
+    tasks: [taxii:fetch, kev:ingest, tech:map_controls]
+  coverage-exporter:
+    cron: "@every 1m"
+    task: coverage:exporter
