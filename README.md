@@ -28,6 +28,34 @@ Build an engineer facing wiki and forum that doubles as a security lab and portf
 - Slop is quantified and flagged in PR reports
 
 ## Quick start
+
+### Slack Bridge (Local)
+
+To run the Slack to UCAPI bridge locally, you'll need to set the required environment variables. See `docs/secrets.md` for a full list.
+
+```bash
+# Set required secrets (do not commit these values)
+export SLACK_BOT_TOKEN="..."
+export SLACK_SIGNING_SECRET="..."
+export UCAPI_URL="http://localhost:8080" # Or your UCAPI endpoint
+export UCAPI_SERVICE_KEY="..."
+
+# Run the bridge
+./tools/run_slack_bridge.sh
+```
+
+### Deploying the Slack Bridge
+
+To deploy the bridge, you need a public endpoint to provide to Slack. You can use services like Render, Fly.io, or a Cloudflare Tunnel.
+
+1.  Go to [api.slack.com/apps](https://api.slack.com/apps) and create a new app.
+2.  Choose "From an app manifest" and paste the contents of `services/slack/manifest.yml`.
+3.  Update the `request_url` fields in the manifest with your public host URL before creating the app.
+4.  Install the app to your workspace and retrieve the Bot Token and Signing Secret.
+5.  Set the environment variables in your deployment environment.
+
+### Docusaurus Site
+
 ```bash
 # Site
 cd site
