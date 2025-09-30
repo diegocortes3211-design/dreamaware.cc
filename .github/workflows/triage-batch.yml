@@ -1,0 +1,35 @@
+name: Triage & Batch Planner
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *' # every 6 hours
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Setup gh
+        uses: cli/gh-action@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate merge plan
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 tools/triage/merge_plan.py
+      - name: Commit plan
+        run: |
+          git config user.name "dreamaware-bot"
+          git config user.email "bot@dreamaware.ai"
+          git add tools/triage/merge_plan.md
+          git diff --staged --quiet || git commit -m "chore(triage): refresh merge plan"
+          git push
